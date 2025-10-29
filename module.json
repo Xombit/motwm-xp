@@ -12,6 +12,7 @@
     "minimum": "11",
     "verified": "11"
   },
+  "system": ["D35E"],
   "relationships": {
     "systems": [
       {
@@ -21,8 +22,7 @@
           "minimum": "2.4.3"
         }
       }
-    ],
-    "requires": []
+    ]
   },
   "esmodules": [
     "dist/main.js"
