@@ -1,0 +1,13 @@
+<div class="motwmxp-bar" title="{{tooltip}}">
+  {{#each layers}}
+    <div class="motwmxp-bar-fill {{class}}" style="width: {{width}}%;"></div>
+  {{/each}}
+
+  <div class="motwmxp-bar-segments">
+    {{#each segments}}
+      <span class="seg {{this.class}}" style="left: {{this.left}}%;"></span>
+    {{/each}}
+  </div>
+
+  <div class="motwmxp-bar-title">{{label}}</div>
+</div>
