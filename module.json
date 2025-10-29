@@ -21,7 +21,8 @@
           "minimum": "2.4.3"
         }
       }
-    ]
+    ],
+    "requires": []
   },
   "esmodules": [
     "dist/main.js"
