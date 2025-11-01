@@ -15,12 +15,12 @@ package_path = Path(f"packages/{name}-{version}.zip")
 package_path.parent.mkdir(exist_ok=True)
 
 with zipfile.ZipFile(package_path, "w", zipfile.ZIP_DEFLATED) as z:
-    # Add built files from dist/
+    # Add built files from dist/ (preserve dist/ folder structure)
     dist_files = ["main.js", "styles.css"]
     for filename in dist_files:
         dist_path = Path("dist") / filename
         if dist_path.exists():
-            z.write(dist_path, filename)
+            z.write(dist_path, f"dist/{filename}")
     
     # Add root module files
     root_files = ["module.json", "README.md", "LICENSE", "CHANGELOG.md"]

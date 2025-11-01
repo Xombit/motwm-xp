@@ -26,12 +26,12 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 $zip = [System.IO.Compression.ZipFile]::Open($packagePath, 'Create')
 
 try {
-    # Add built files from dist/
+    # Add built files from dist/ (preserve dist/ folder structure)
     $distFiles = @("main.js", "styles.css")
     foreach ($file in $distFiles) {
         $distPath = "dist\$file"
         if (Test-Path $distPath) {
-            [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $distPath, $file)
+            [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $distPath, "dist\$file")
         }
     }
     
