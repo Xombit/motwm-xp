@@ -3,7 +3,7 @@
 **Version:** v1.0.0  
 **For:** Foundry VTT v11 • D&D 3.5e (D35E ≥ 2.4.3)
 
-A fast, GM-friendly encounter calculator and XP manager with a modern UI and a slick MMO-style player XP bar. Built for 3.5e RAW tables with sensible features for real tables.
+A fast, GM-friendly encounter calculator and XP manager with a modern UI and a slick MMO-style player XP bar. Built for 3.5e RAW, with sensible features for real tables.
 
 ---
 
