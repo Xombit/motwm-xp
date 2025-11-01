@@ -49,7 +49,7 @@ export class XpCalculatorApp extends Application {
       width: 960,
       height: 660,
       resizable: true,
-      template: "modules/motwm-xp/src/ui/templates/xp-calculator.hbs"
+      template: "modules/motwm-xp/templates/xp-calculator.hbs"
     });
   }
 

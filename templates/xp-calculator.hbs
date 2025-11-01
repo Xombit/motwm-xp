@@ -1,0 +1,178 @@
+<section class="motwmxp-calc">
+<header>
+  <h2>Encounter & XP Calculator</h2>
+
+  <!-- Two-column button grid -->
+  <div class="buttons two-col">
+    <!-- Party / setup (left column group) -->
+    <button data-action="add-online-assigned" class="btn">
+      <i class="fas fa-signal"></i> Add Online Assigned PCs
+    </button>
+
+    <!-- Enemies (right column group) -->
+    <button data-action="add-selected-enemies" class="btn">
+      <i class="fas fa-skull-crossbones"></i> Add Selected as Enemies
+    </button>
+
+    <button data-action="add-all-assigned" class="btn">
+      <i class="fas fa-users"></i> Add All Assigned PCs
+    </button>
+
+    <button data-action="add-hostile-scene" class="btn">
+      <i class="fas fa-fire"></i> Add All Hostile Tokens
+    </button>
+
+    <button data-action="add-friendly-scene" class="btn">
+      <i class="fas fa-handshake"></i> Add Friendly Tokens
+    </button>
+
+    <button data-action="add-neutral-scene" class="btn">
+      <i class="fas fa-eye"></i> Add Neutral Tokens
+    </button>
+
+    <button data-action="clear-party" class="btn subtle">
+      <i class="fas fa-eraser"></i> Clear Party
+    </button>
+
+    <button data-action="clear-enemies" class="btn subtle">
+      <i class="fas fa-trash"></i> Clear Enemies
+    </button>
+
+    <!-- Full-width apply & rollback -->
+    <button data-action="apply-xp" class="apply">
+      <i class="fas fa-gift"></i> Apply XP
+    </button>
+
+    {{#if hasRollback}}
+    <button data-action="rollback-xp" class="btn">
+      <i class="fas fa-undo"></i> Rollback Last Award
+    </button>
+    {{else}}
+    <div></div>
+    {{/if}}
+  </div>
+</header>
+
+
+
+
+  <div class="grid">
+    <div class="col">
+      <h3>Party (Recipients)</h3>
+      <div class="list party">
+        {{#if party.length}}
+          {{#each party}}
+            <div class="row" data-id="{{id}}" title="Double-click to open character sheet">
+  <img src="{{img}}" width="24" height="24"/>
+  <div class="grow">
+    <b>{{name}}</b> — L{{level}}
+    {{#if friend}}<span class="tag">Friend</span>{{/if}}
+    <div class="tiny muted">Segment ≈ {{bubble}} XP</div>
+  </div>
+
+  <label class="checkbox">
+    <input type="checkbox" data-action="toggle-earns" data-id="{{id}}" {{#if earns}}checked{{/if}} />
+    earns XP
+  </label>
+
+  <!-- ⤵ NEW: Manual award controls -->
+  <div class="manual-award">
+    <input type="number" min="0" step="1" placeholder="0"
+           data-action="award-amount" value="{{manual.amount}}" style="width:72px;">
+    <select data-action="award-unit" style="width:94px;">
+      <option value="points"  {{#if (eq manual.unit "points")}}selected{{/if}}>Points</option>
+      <option value="bubbles" {{#if (eq manual.unit "bubbles")}}selected{{/if}}>Segments</option>
+    </select>
+    <input type="text" data-action="award-reason" placeholder="Reason (chat)"
+           value="{{manual.reason}}" style="width:180px;">
+  </div>
+
+  <button class="icon" data-action="remove-party" data-id="{{id}}" title="Remove">
+    <i class="fas fa-times"></i>
+  </button>
+</div>
+
+          {{/each}}
+        {{else}}
+          <div class="empty">No party members yet — use "Add Online Assigned PCs" or "Add All Assigned PCs" buttons above, or "Add Friendly Tokens (Scene)" to include NPCs.</div>
+        {{/if}}
+      </div>
+    </div>
+
+    <div class="col">
+      <h3>Enemies (Sources)</h3>
+      <div class="list enemies">
+        {{#if enemies.length}}
+          {{#each enemies}}
+            <div class="row" data-id="{{id}}" title="Double-click to open character sheet">
+              <img src="{{img}}" width="24" height="24"/>
+              <div class="grow">
+                <b>{{name}}</b> — CR {{cr}}
+              </div>
+              <button class="icon" data-action="remove-enemy" data-id="{{id}}" title="Remove"><i class="fas fa-times"></i></button>
+            </div>
+          {{/each}}
+        {{else}}
+          <div class="empty">No enemies yet — select tokens and use "Add Selected as Enemies", or use "Add All Hostile Tokens (Scene)" and "Add Neutral Tokens (Scene)" buttons above.</div>
+        {{/if}}
+      </div>
+
+      <div class="el-box">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div><b>Encounter EL:</b> {{el}}</div>
+          <label class="muted" style="margin-left:auto;">
+            EL Modifier:
+            <input
+              type="number"
+              step="1"
+              inputmode="numeric"
+              data-action="el-delta"
+              value="{{elDelta}}"
+              placeholder="0"
+              style="width:80px;"
+            >
+          </label>
+
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div class="muted" style="flex:1;" title="Party size adjustment is for difficulty estimation only. XP awards are calculated from base APL. Use the EL modifier to adjust XP awards.">
+            {{encounterInfo}}
+            <i class="fas fa-info-circle" style="font-size:10px; opacity:0.6; margin-left:4px;"></i>
+          </div>
+          {{#if elBreakdown}}
+          <button class="icon" data-action="toggle-el-details" title="Show/hide EL calculation details" style="width:20px; height:20px; font-size:10px;">
+            {{#if showElDetails}}▲{{else}}▼{{/if}}
+          </button>
+          {{/if}}
+        </div>
+        {{#if showElDetails}}
+        <div class="muted el-details" style="font-size:11px; margin-top:4px; padding:4px 8px; background:rgba(255,255,255,0.02); border-radius:4px;">
+          <div style="margin-bottom:2px;"><strong>EL Calculation:</strong></div>
+          <pre style="margin:0; font-family:inherit; font-size:inherit; white-space:pre-wrap;">{{elBreakdown}}</pre>
+        </div>
+        {{/if}}
+      </div>
+    </div>
+  </div>
+
+  <h3>Live Preview</h3>
+  <div class="preview">
+    {{#if preview.length}}
+      <table class="table">
+        <thead><tr><th>Actor</th><th>Level</th><th title="Encounter Level">EL</th><th>XP (this award)</th></tr></thead>
+        <tbody>
+        {{#each preview}}
+          <tr>
+            <td>{{name}}</td>
+            <td>{{level}}</td>
+            <td>{{el}}</td>
+            <td>{{xp}}</td>
+          </tr>
+        {{/each}}
+        </tbody>
+      </table>
+    {{else}}
+      <div class="empty">Add Party and Enemies to see a live XP preview.</div>
+    {{/if}}
+  </div>
+</section>

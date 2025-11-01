@@ -44,7 +44,7 @@ try {
     }
     
     # Add templates
-    $templatesDir = "src\ui\templates"
+    $templatesDir = "templates"
     if (Test-Path $templatesDir) {
         $templates = Get-ChildItem "$templatesDir\*.hbs"
         foreach ($template in $templates) {

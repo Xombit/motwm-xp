@@ -29,7 +29,7 @@ with zipfile.ZipFile(package_path, "w", zipfile.ZIP_DEFLATED) as z:
             z.write(filename)
     
     # Add templates directory
-    templates_dir = Path("src/ui/templates")
+    templates_dir = Path("templates")
     if templates_dir.exists():
         for template in templates_dir.glob("*.hbs"):
             # Keep templates in templates/ folder structure

@@ -16,7 +16,7 @@ export class XpBarApp extends Application {
   static get defaultOptions() {
     return mergeObject(super.defaultOptions, {
       id: "motwmxp-bar",
-      template: "modules/motwm-xp/src/ui/templates/xp-bar.hbs"
+      template: "modules/motwm-xp/templates/xp-bar.hbs"
     });
   }
 
