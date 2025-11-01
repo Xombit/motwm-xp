@@ -255,11 +255,12 @@ activateListeners(html: JQuery) {
   });
 
   // --- Manual Award inputs (per-party row) ---
-  html.on("input", "[data-action='award-amount']", ev => {
+  html.on("change blur", "[data-action='award-amount']", ev => {
     const row = (ev.currentTarget as HTMLElement).closest("[data-id]") as HTMLElement;
     const id = row?.dataset.id!;
     const prev = this.manualAwards.get(id) ?? { amount: 0, unit: "points", reason: "" };
     this.manualAwards.set(id, { ...prev, amount: Number((ev.currentTarget as HTMLInputElement).value) || 0 });
+    this.render(false); // Update preview
   });
 
   html.on("change", "[data-action='award-unit']", ev => {
@@ -267,6 +268,7 @@ activateListeners(html: JQuery) {
     const id = row?.dataset.id!;
     const prev = this.manualAwards.get(id) ?? { amount: 0, unit: "points", reason: "" };
     this.manualAwards.set(id, { ...prev, unit: ((ev.currentTarget as HTMLSelectElement).value as "points" | "bubbles") });
+    this.render(false); // Update preview
   });
 
   html.on("input", "[data-action='award-reason']", ev => {
@@ -274,6 +276,7 @@ activateListeners(html: JQuery) {
     const id = row?.dataset.id!;
     const prev = this.manualAwards.get(id) ?? { amount: 0, unit: "points", reason: "" };
     this.manualAwards.set(id, { ...prev, reason: (ev.currentTarget as HTMLInputElement).value ?? "" });
+    // No render needed for reason - it's just for chat message
   });
 
   // --- Party / setup sources (NEW canonical set) ---
