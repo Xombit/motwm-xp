@@ -7,6 +7,16 @@ A fast, GM-friendly encounter calculator and XP manager with a modern UI and a s
 
 ---
 
+## Screenshots
+
+### XP Calculator
+![XP Calculator](images/calculator.webp)
+
+### XP Bar
+![XP Bar](images/xpbar.webp)
+
+---
+
 ## Overview
 
 This module gives GMs a live **Encounter Level (EL)** calculator, multiple **XP award modes**, manual bonus awards, and a one-click **rollback**. Players get a clean, draggable **XP bar** that shows progress (including banked levels).
