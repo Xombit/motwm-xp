@@ -36,5 +36,17 @@
   "manifest": "https://raw.githubusercontent.com/Xombit/motwm-xp/main/module.json",
   "download": "https://github.com/Xombit/motwm-xp/releases/download/1.0.0/motwm-xp-1.0.0.zip",
   "readme": "README.md",
-  "license": "LICENSE"
+  "license": "LICENSE",
+  "bugs": "https://github.com/Xombit/motwm-xp/issues",
+  "changelog": "https://github.com/Xombit/motwm-xp/blob/main/CHANGELOG.md",
+  "media": [
+    {
+      "type": "screenshot",
+      "url": "https://raw.githubusercontent.com/Xombit/motwm-xp/main/images/calculator.webp"
+    },
+    {
+      "type": "screenshot",
+      "url": "https://raw.githubusercontent.com/Xombit/motwm-xp/main/images/xpbar.webp"
+    }
+  ]
 }
