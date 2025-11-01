@@ -158,30 +158,53 @@ getData(): any {
     };
   });
 
-  // Live preview
+  // Live preview - calculate encounter XP + manual awards
   let preview: any[] = [];
 
+  // First, get encounter XP for earners
+  const encounterXpMap = new Map<string, number>();
   if (elInt > 0 && partyArr.some(p => p.earns)) {
     if (awardMode === "raw35") {
       // RAW 3.5e per-PC
-      preview = partyArr.filter(p => p.earns).map(p => ({
-        id: p.id, name: p.name, level: p.level,
-        el: elInt,
-        xp: awardRaw35(p.level, elInt)
-      }));
+      partyArr.filter(p => p.earns).forEach(p => {
+        encounterXpMap.set(p.id, awardRaw35(p.level, elInt));
+      });
     } else if (awardMode === "split30") {
       // D&D 3.0 split pot (using actual DMG table)
       const apl = Math.round(partyArr.reduce((a, p) => a + p.level, 0) / Math.max(1, partyArr.length));
       const pot = getPot30(apl, elInt);
       const earners = partyArr.filter(p => p.earns);
       const slice = split30(pot, 1, earners.length);
-      preview = earners.map(p => ({
-        id: p.id, name: p.name, level: p.level,
-        el: elInt,
-        xp: slice
-      }));
+      earners.forEach(p => {
+        encounterXpMap.set(p.id, slice);
+      });
     }
   }
+
+  // Now build preview including manual awards for ALL party members who have either
+  partyArr.forEach(p => {
+    const encounterXp = encounterXpMap.get(p.id) || 0;
+    const manualAward = this.manualAwards.get(p.id);
+    let manualXp = 0;
+    
+    if (manualAward && manualAward.amount) {
+      const bubbleSize = bubbleSizeForLevel(p.level);
+      manualXp = Math.round(manualAward.unit === "bubbles" ? manualAward.amount * bubbleSize : manualAward.amount);
+    }
+    
+    const totalXp = encounterXp + manualXp;
+    
+    // Only show in preview if they're getting XP from either source
+    if (totalXp > 0) {
+      preview.push({
+        id: p.id,
+        name: p.name,
+        level: p.level,
+        el: elInt || "—",
+        xp: totalXp
+      });
+    }
+  });
 
   return {
     party: partyArr,
