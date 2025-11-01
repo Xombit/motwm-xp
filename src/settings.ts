@@ -22,8 +22,8 @@ export function registerSettings() {
     name: "XP Bar Position",
     scope: "client",
     config: false,
-    type: Object,
-    default: null
+    type: String,
+    default: ""
   });
 
   // Calculator award mode (the calculator reads this)

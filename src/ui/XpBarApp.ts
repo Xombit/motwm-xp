@@ -22,12 +22,18 @@ export class XpBarApp extends Application {
 
   /* ---------- position helpers ---------- */
   private _getSavedPos(): Pos | null {
-    const p = game.settings.get("motwm-xp", "barPos") as any;
-    return p && Number.isFinite(p.left) && Number.isFinite(p.top) ? p : null;
+    const str = game.settings.get("motwm-xp", "barPos") as string;
+    if (!str) return null;
+    try {
+      const p = JSON.parse(str);
+      return p && Number.isFinite(p.left) && Number.isFinite(p.top) ? p : null;
+    } catch {
+      return null;
+    }
   }
 
   private async _savePos(left: number, top: number) {
-    await game.settings.set("motwm-xp", "barPos", { left, top });
+    await game.settings.set("motwm-xp", "barPos", JSON.stringify({ left, top }));
   }
 
   /** Apply pixel position; if none saved, center by calculating pixels (no CSS transform). */
