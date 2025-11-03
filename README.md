@@ -32,7 +32,7 @@ This module gives GMs a live **Encounter Level (EL)** calculator, multiple **XP 
 - **Two award modes:**  
   - **RAW 3.5e (per-PC):** table lookup by each character's level vs. EL.  
   - **Classic 3.0 (split pot):** uses a party pot based on APL vs. CR, then splits among earners.
-- **Manual awards** in **points** or **segments** (“bubbles”), with a **reason** that’s posted to chat.
+- **Manual awards** in **points** or **segments** (“bubbles”), with a reason that’s posted to chat.
 - **Encounter difficulty tag** (Easy / Even / Challenging / Very Challenging / High Risk).
 - **Smart token tools:** add **online assigned PCs**, **all assigned PCs**, **friendly tokens** (scene), **selected to party**, **selected to enemies**, **all hostile tokens**, **all neutral tokens**.
 - **Rollback** the last XP grant if you fat-finger something.
@@ -40,7 +40,7 @@ This module gives GMs a live **Encounter Level (EL)** calculator, multiple **XP 
 ### Player XP Bar
 - **MMO-style XP bar** at the bottom of the screen.
 - **Layered progress** shows current level plus up to **3 banked levels** (different colors).
-- **Classic 13⅓ segments** per level for precise reading.
+- **Classic 13⅓ segments** per level, for visual feedback on your progress.
 - **Draggable & remembered** per client.
 
 ---
@@ -88,7 +88,7 @@ The calculator follows the **Dungeon Master’s Guide** logic for turning creatu
 
 - **Award Mode:**  
   - **RAW 3.5e (per-PC)** - Default  
-  - **Classic 3.0 (split pot)** - Uses actual DMG Table 7-1 (levels 1-20) with mathematical extrapolation to level 40
+  - **Classic 3.0 (split pot)** - Uses the old style
 - **Chat Broadcasting:** toggle XP award messages to the chat log.
 - **Player Bar Visibility:** allow players to show/hide the XP bar.
 - **XP Track:** the bar respects the D35E system's `experienceRate` (Fast/Medium/Slow) if your world uses it.
