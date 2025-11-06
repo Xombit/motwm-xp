@@ -9,7 +9,7 @@
     }
   ],
   "compatibility": {
-    "minimum": "11",
+    "minimum": "10",
     "verified": "11"
   },
   "system": ["D35E"],
@@ -19,7 +19,7 @@
         "id": "D35E",
         "type": "system",
         "compatibility": {
-          "minimum": "2.4.3"
+          "minimum": "2.1.3"
         }
       }
     ]
