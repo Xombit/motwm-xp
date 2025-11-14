@@ -25,9 +25,27 @@ export class D35EAdapter {
     return Number(fallback ?? 0);
   }
   static getCR(actor: Actor): number | null {
-    // @ts-ignore
-    const cr = getProperty(actor, "system.details.cr.value");
-    if (cr != null) return Number(cr);
+    // D35E system stores CR in different ways:
+    // - system.details.totalCr = adjusted CR with templates (PRIORITY!)
+    // - system.details.cr = base CR without templates
+    const crPaths = [
+      "system.details.totalCr",     // D35E: adjusted CR (includes templates!) - CHECK THIS FIRST
+      "system.details.cr.total",    // alternative adjusted CR format
+      "system.attributes.cr.total", // yet another alternative
+      "system.details.cr.value",    // structured base CR
+      "system.details.cr",          // flat base CR number
+      "data.details.totalCr",       // legacy adjusted
+      "data.details.cr.total",      // legacy adjusted
+      "data.details.cr.value",      // legacy base CR
+      "data.details.cr"             // legacy flat number
+    ];
+    
+    for (const path of crPaths) {
+      // @ts-ignore
+      const cr = getProperty(actor, path);
+      if (cr != null && Number.isFinite(Number(cr))) return Number(cr);
+    }
+    
     // fallback: treat level as CR (PC-sheet BBEG)
     const lvl = this.getLevel(actor);
     return lvl ? Number(lvl) : null;

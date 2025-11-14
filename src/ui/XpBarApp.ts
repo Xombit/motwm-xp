@@ -1,4 +1,4 @@
-import { systemTotalXPForLevel, bubblesForLevel } from "../calc/xp";
+import { systemTotalXPForLevel, TOTAL_BUBBLE_SEGMENTS } from "../calc/xp";
 
 type Pos = { left: number; top: number };
 
@@ -87,7 +87,7 @@ export class XpBarApp extends Application {
 
     // segments (13 + mini 1/3)
     const segments: any[] = [];
-    const totalSegs = bubblesForLevel();
+    const totalSegs = TOTAL_BUBBLE_SEGMENTS;
     for (let i = 1; i <= 13; i++) segments.push({ left: (i / totalSegs) * 100, class: "" });
     segments.push({ left: (13 / totalSegs) * 100, class: "mini" });
 
@@ -102,12 +102,11 @@ export class XpBarApp extends Application {
     await super._render(force, options);
     this._applyPos();
 
-    if (this._wired) return; // don’t double-bind
-    this._wired = true;
-
+    // Always re-attach pointerdown to the new element after render
     const el = this.element[0] as HTMLElement;
+    if (!el) return;
 
-    // DRAG ON WHOLE BAR
+    // DRAG ON WHOLE BAR - must re-attach every render since element is recreated
     el.addEventListener("pointerdown", (ev: PointerEvent) => {
       ev.preventDefault();
 
@@ -127,19 +126,27 @@ export class XpBarApp extends Application {
       this._dragOffset.y = ev.clientY - rect.top;
     });
 
+    // Window listeners only need to be attached once
+    if (this._wired) return;
+    this._wired = true;
+
     window.addEventListener("pointermove", (ev: PointerEvent) => {
       if (!this._dragging) return;
+      const currentEl = this.element[0] as HTMLElement;
+      if (!currentEl) return;
       const left = Math.max(0, Math.min(window.innerWidth  - 50, ev.clientX - this._dragOffset.x));
       const top  = Math.max(0, Math.min(window.innerHeight - 24, ev.clientY - this._dragOffset.y));
-      el.style.left = `${left}px`;
-      el.style.top  = `${top}px`;
+      currentEl.style.left = `${left}px`;
+      currentEl.style.top  = `${top}px`;
     });
 
     window.addEventListener("pointerup", async () => {
       if (!this._dragging) return;
       this._dragging = false;
-      const left = parseInt(el.style.left || "0", 10);
-      const top  = parseInt(el.style.top  || "0", 10);
+      const currentEl = this.element[0] as HTMLElement;
+      if (!currentEl) return;
+      const left = parseInt(currentEl.style.left || "0", 10);
+      const top  = parseInt(currentEl.style.top  || "0", 10);
       await this._savePos(left, top);
     });
 

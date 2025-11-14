@@ -11,40 +11,125 @@ export function systemTotalXPForLevel(level: number): number {
   return Math.floor(1000 * ((L - 1) * L) / 2);
 }
 
-export function systemXPNeededToNextLevel(level: number): number {
-  const curr = systemTotalXPForLevel(level);
-  const next = systemTotalXPForLevel(level + 1);
-  return Math.max(0, next - curr);
-}
-
-export function inLevelProgress(totalXP: number, level: number) {
-  const base = systemTotalXPForLevel(level);
-  const need = systemXPNeededToNextLevel(level);
-  const inLevel = Math.max(0, Math.min(need, totalXP - base));
-  return { inLevel, need };
-}
-
-export function bubblesForLevel(): number { return 13 + 1/3; }
+/** Total number of bubble segments in the XP bar UI */
+export const TOTAL_BUBBLE_SEGMENTS = 13 + 1/3;
 
 /** ===== Award methods (we'll wire exact tables shortly) ===== */
 
-/** RAW 3.5e per-PC award: Level vs Encounter Level (placeholder stub, will swap to exact DMG matrix) */
-export function awardRaw35(level: number, el: number): number {
-  if (level <= 0) return 0;
-  const base = 75 * level;                 // equal EL baseline
-  const diff = el - level;
-  const steps = Math.floor(diff / 2);
-  const factor = Math.pow(2, steps);       // +2 EL doubles, −2 halves
-  return Math.max(0, Math.round(base * factor));
+/** 
+ * RAW 3.5e per-PC award: PC Level vs Encounter Level
+ * Based on the official d20srd.org encounter calculator
+ * (https://www.d20srd.org/extras/d20encountercalculator/)
+ * 
+ * This matches the community-standard calculator which uses the DMG formulas
+ * with special case adjustments for specific level/EL combinations.
+ * 
+ * Key rules:
+ * - Encounters 8+ levels below party: 0 XP (too trivial)
+ * - Encounters 8+ levels above party: 0 XP (too dangerous)
+ * - Low level PCs (1-3) have special handling
+ * - Specific adjustments for even/odd ELs at certain PC levels
+ */
+export function awardRaw35(pcLevel: number, encounterLevel: number): number {
+  let x = pcLevel;
+  let y = encounterLevel;
+  
+  // Invalid inputs
+  if (x <= 0 || y <= 0) return 0;
+  
+  let iReturn = 0;
+  
+  // Clamp low-level PCs to level 3 for calculation purposes
+  if (x < 3) x = 3;
+  
+  // Special case for very low level encounters (including fractional CRs)
+  // For fractional CRs (0.125, 0.25, 0.33, 0.5), use proportional XP
+  if ((x <= 6) && (y <= 1)) {
+    iReturn = 300 * y;
+  } else if (y < 1) {
+    // Fractional EL for higher-level PCs: scale from base 300
+    iReturn = 300 * y;
+  } else {
+    // General formula for 3.5 (attempts to follow DMG pattern)
+    // This is a best-fit formula that gets corrected by special cases below
+    const mEven = (val: number): number => {
+      let result = 2 * Math.floor(val / 2);
+      if (val < result) result += -2;
+      else if (val > result) result += 2;
+      return result;
+    };
+    
+    iReturn = 6.25 * x * Math.pow(2, mEven(7 - (x - y)) / 2) * (11 - (x - y) - mEven(7 - (x - y)));
+  }
+  
+  // Special corrections for even ELs (4, 6, 8, 10, 12, 14, 16, 18, 20)
+  // These override the general formula for specific PC level ranges
+  if ([4, 6, 8, 10, 12, 14, 16, 18, 20].includes(y)) {
+    if (x <= 3) {
+      iReturn = 1350 * Math.pow(2, (y - 4) / 2);
+    } else if (x === 5 && y >= 6) {
+      iReturn = 2250 * Math.pow(2, (y - 6) / 2);
+    } else if (x === 7 && y >= 8) {
+      iReturn = 3150 * Math.pow(2, (y - 8) / 2);
+    } else if (x === 9 && y >= 10) {
+      iReturn = 4050 * Math.pow(2, (y - 10) / 2);
+    } else if (x === 11 && y >= 12) {
+      iReturn = 4950 * Math.pow(2, (y - 12) / 2);
+    } else if (x === 13 && y >= 14) {
+      iReturn = 5850 * Math.pow(2, (y - 14) / 2);
+    } else if (x === 15 && y >= 16) {
+      iReturn = 6750 * Math.pow(2, (y - 16) / 2);
+    } else if (x === 17 && y >= 18) {
+      iReturn = 7650 * Math.pow(2, (y - 18) / 2);
+    } else if (x === 19 && y >= 20) {
+      iReturn = 8550 * Math.pow(2, (y - 20) / 2);
+    }
+  }
+  
+  // Special corrections for odd ELs (7, 9, 11, 13, 15, 17, 19)
+  // These also override the general formula for specific PC level ranges
+  if ([7, 9, 11, 13, 15, 17, 19].includes(y)) {
+    if (x === 6) {
+      iReturn = 2700 * Math.pow(2, (y - 7) / 2);
+    }
+    if (x === 8 && y >= 9) {
+      iReturn = 3600 * Math.pow(2, (y - 9) / 2);
+    }
+    if (x === 10 && y >= 11) {
+      iReturn = 4500 * Math.pow(2, (y - 11) / 2);
+    }
+    if (x === 12 && y >= 13) {
+      iReturn = 5400 * Math.pow(2, (y - 13) / 2);
+    }
+    if (x === 14 && y >= 15) {
+      iReturn = 6300 * Math.pow(2, (y - 15) / 2);
+    }
+    if (x === 16 && y >= 17) {
+      iReturn = 7200 * Math.pow(2, (y - 17) / 2);
+    }
+    if (x === 18 && y >= 19) {
+      iReturn = 8100 * Math.pow(2, (y - 19) / 2);
+    }
+  }
+  
+  // Recursively handle very high ELs (above 20)
+  if (y > 20) {
+    iReturn = 2 * awardRaw35(x, y - 2);
+  }
+  
+  // Final bounds checks: no XP for encounters too far from party level
+  // More than 7 levels below: too trivial
+  if (x - y > 7) iReturn = 0;
+  // More than 7 levels above: too dangerous (party likely TPK'd)
+  else if (y - x > 7) iReturn = 0;
+  
+  return Math.round(iReturn);
 }
 
 /** 
  * D&D 3.0 XP Table: Returns the total party XP pot for a given APL and CR
- * Based on DMG Table 7-1 (levels 1-20) with extrapolation to level 40
  */
 export function getPot30(apl: number, cr: number): number {
-  // D&D 3.0 XP award table: [partyLevel][challengeRating] = totalXP for entire party
-  // Levels 1-20 are from DMG, 21-40 are extrapolated using the ×1.5,×1.5,×4/3,×4/3 pattern
   const TABLE_30: Record<number, Record<number, number>> = {
     1:  { 1:300, 2:600, 3:900, 4:1350, 5:1800, 6:2700, 7:3600, 8:5400, 9:7200, 10:10800 },
     2:  { 1:300, 2:600, 3:900, 4:1350, 5:1800, 6:2700, 7:3600, 8:5400, 9:7200, 10:10800 },
@@ -66,7 +151,6 @@ export function getPot30(apl: number, cr: number): number {
     18: { 8:450, 9:675, 10:1013, 11:638, 12:850, 13:1275, 14:1900, 15:2500, 16:4800, 17:7200, 18:10800, 19:14400, 20:19200 },
     19: { 9:475, 10:713, 11:638, 12:850, 13:1275, 14:1900, 15:2500, 16:4800, 17:7200, 18:10800, 19:14400, 20:19200 },
     20: { 10:750, 11:900, 12:1200, 13:1800, 14:2400, 15:3200, 16:4800, 17:7200, 18:10800, 19:14400, 20:19200 },
-    // Extrapolated levels 21-40 using ×1.5,×1.5,×4/3,×4/3 pattern from level 20
     21: { 11:1125, 12:1350, 13:1800, 14:2700, 15:3600, 16:4800, 17:7200, 18:10800, 19:14400, 20:21600, 21:28800, 22:43200, 23:57600, 24:76800 },
     22: { 12:1688, 13:2025, 14:2700, 15:4050, 16:5400, 17:7200, 18:10800, 19:16200, 20:21600, 21:32400, 22:43200, 23:64800, 24:86400, 25:115200 },
     23: { 13:2250, 14:2700, 15:3600, 16:5400, 17:7200, 18:9600, 19:14400, 20:21600, 21:28800, 22:43200, 23:57600, 24:86400, 25:115200, 26:153600 },

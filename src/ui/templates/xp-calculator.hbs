@@ -104,12 +104,12 @@
       <div class="list enemies">
         {{#if enemies.length}}
           {{#each enemies}}
-            <div class="row" data-id="{{id}}" title="Double-click to open character sheet">
+            <div class="row" data-id="{{mapKey}}" data-actor-id="{{id}}" title="Double-click to open character sheet">
               <img src="{{img}}" width="24" height="24"/>
               <div class="grow">
                 <b>{{name}}</b> — CR {{cr}}
               </div>
-              <button class="icon" data-action="remove-enemy" data-id="{{id}}" title="Remove"><i class="fas fa-times"></i></button>
+              <button class="icon" data-action="remove-enemy" data-id="{{mapKey}}" title="Remove"><i class="fas fa-times"></i></button>
             </div>
           {{/each}}
         {{else}}
@@ -135,7 +135,7 @@
 
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
-          <div class="muted" style="flex:1;" title="Party size adjustment is for difficulty estimation only. XP awards are calculated from base APL. Use the EL modifier to adjust XP awards.">
+          <div class="muted" style="flex:1;" title="Party Level uses power-based calculation (÷4 baseline) for difficulty only. XP awards use average PC level, unaffected by party size. Use the EL modifier below to adjust encounter XP rewards.">
             {{encounterInfo}}
             <i class="fas fa-info-circle" style="font-size:10px; opacity:0.6; margin-left:4px;"></i>
           </div>

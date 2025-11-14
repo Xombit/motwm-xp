@@ -8,6 +8,34 @@ type ManualAward = {
   reason: string;                    // chat reason
 };
 
+/** Format CR with Unicode fraction characters for common fractional CRs */
+function formatCR(cr: number): string {
+  // Common D&D fractional CRs with Unicode fractions
+  const fractions: Record<number, string> = {
+    0.125: "⅛",
+    0.25: "¼",
+    0.33: "⅓",
+    0.333: "⅓",
+    0.5: "½",
+    0.66: "⅔",
+    0.667: "⅔",
+    0.75: "¾"
+  };
+  
+  // Check if it's a known fraction (with small tolerance for floating point)
+  for (const [value, symbol] of Object.entries(fractions)) {
+    if (Math.abs(cr - parseFloat(value)) < 0.01) {
+      return symbol;
+    }
+  }
+  
+  // For whole numbers, just return the number
+  if (Number.isInteger(cr)) return cr.toString();
+  
+  // For other decimals, format to 2 decimal places
+  return cr.toFixed(2);
+}
+
 function bubbleSizeForLevel(level: number): number {
   // per-level span divided by 13⅓
   const start = (window as any).CONFIG?.D35E
@@ -26,7 +54,7 @@ function getModSetting<T = any>(key: string, fallback: T): T {
 }
 
 type PartyEntry = { id: string; name: string; img: string; level: number; earns: boolean; friend: boolean; };
-type EnemyEntry = { id: string; name: string; img: string; cr: number; };
+type EnemyEntry = { id: string; tokenId?: string; name: string; img: string; cr: number; };
 
 export class XpCalculatorApp extends Application {
   private party: Map<string, PartyEntry> = new Map();
@@ -58,7 +86,8 @@ getData(): any {
   // Build EL from enemies (group by CR)
   const crMap = new Map<number, number>();
   for (const e of this.enemies.values()) {
-    const cr = Math.max(1, Math.floor(Number(e.cr) || 0));
+    // Preserve fractional CRs (0.125, 0.25, 0.33, 0.5, etc.)
+    const cr = Math.max(0.125, Number(e.cr) || 1);
     crMap.set(cr, (crMap.get(cr) ?? 0) + 1);
   }
   const groupELs: number[] = [];
@@ -69,30 +98,52 @@ getData(): any {
   const delta = Number.isFinite(this.elDelta) ? Math.trunc(this.elDelta) : 0;
   const elInt = baseEL + delta; // use this for UI and award math
 
-  // Calculate APL and encounter difficulty with party size adjustment
+  // Calculate party level for encounter difficulty (d20srd.org method)
+  // Uses power-based formula: always divides by 4 (assumes 4-PC baseline)
   const partyLevels = [...this.party.values()].map(p => p.level);
   const partySize = partyLevels.length;
-  const baseApl = partyLevels.length > 0 ? Math.round(partyLevels.reduce((sum, lvl) => sum + lvl, 0) / partyLevels.length * 10) / 10 : 0;
   
-  // PF1e party size adjustment: +1 for 6+ chars, -1 for ≤3 chars
-  let sizeAdjustment = 0;
-  if (partySize >= 6) sizeAdjustment = Math.floor((partySize - 4) / 2);
-  else if (partySize <= 3) sizeAdjustment = -1;
+  // Helper: Convert CR/level to "power" (exponential scale)
+  const crToPower = (level: number): number => {
+    if (level < 2) return level;
+    return Math.pow(2, level / 2);
+  };
   
-  const adjustedApl = baseApl + sizeAdjustment;
-  const elDiff = elInt - adjustedApl;
+  // Helper: Convert power back to level
+  const powerToLevel = (power: number): number => {
+    if (power < 2) return power;
+    return 2 * Math.log2(power);
+  };
   
-  let difficulty = "—";
-  if (baseApl > 0 && elInt > 0) {
-    if (elDiff < 0) difficulty = "Easy";
-    else if (elDiff === 0) difficulty = "Even";
-    else if (elDiff === 1) difficulty = "Challenging";
-    else if (elDiff === 2) difficulty = "Very Challenging";
-    else difficulty = "High Risk";
+  // Calculate average level (for XP awards - not affected by party size)
+  const averageLevel = partyLevels.length > 0 
+    ? partyLevels.reduce((sum, lvl) => sum + lvl, 0) / partyLevels.length 
+    : 0;
+  
+  // Calculate party level (for difficulty - affected by party size via ÷4 baseline)
+  let partyLevel = 0;
+  if (partyLevels.length > 0) {
+    const totalPower = partyLevels.reduce((sum, lvl) => sum + crToPower(lvl), 0);
+    // Official calculator always divides by 4 (hardcoded baseline for 4-person party)
+    const partyPower = totalPower / 4;
+    partyLevel = powerToLevel(partyPower);
   }
   
-  const encounterInfo = baseApl > 0 && elInt > 0 
-    ? `APL: ${adjustedApl.toFixed(1)} (${baseApl} base, ${sizeAdjustment >= 0 ? '+' : ''}${sizeAdjustment} size) | EL: ${elInt} | Difficulty: ${difficulty} (${elDiff >= 0 ? '+' : ''}${elDiff})`
+  const elDiff = elInt - partyLevel;
+  
+  let difficulty = "—";
+  if (partyLevel > 0 && elInt > 0) {
+    if (elDiff < -9) difficulty = "Trivial";
+    else if (elDiff < -4) difficulty = "Very Easy";
+    else if (elDiff < 0) difficulty = "Easy";
+    else if (elDiff === 0) difficulty = "Challenging";
+    else if (elDiff <= 4) difficulty = "Very Difficult";
+    else if (elDiff <= 7) difficulty = "Overpowering";
+    else difficulty = "Unbeatable";
+  }
+  
+  const encounterInfo = partyLevel > 0 && elInt > 0 
+    ? `Party: ${partySize} PCs, Avg Lvl ${averageLevel.toFixed(1)}, Party Level ${partyLevel.toFixed(1)} | EL: ${elInt} | Difficulty: ${difficulty} (${elDiff >= 0 ? '+' : ''}${elDiff.toFixed(1)})`
     : "—";
 
   // Detailed EL breakdown for toggle view with step-by-step tree format
@@ -103,7 +154,7 @@ getData(): any {
     // Step 1: Show individual CR group conversions
     const crGroups = [...crMap.entries()].map(([cr, count]) => {
       const groupEL = groupToEL(cr, count);
-      return { cr, count, groupEL, text: `${count}×CR${cr} → EL${groupEL}` };
+      return { cr, count, groupEL, text: `${count}×CR${formatCR(cr)} → EL${groupEL}` };
     }).sort((a, b) => b.groupEL - a.groupEL); // Sort by EL descending
     
     lines.push(...crGroups.map(g => `└─ ${g.text}`));
@@ -206,9 +257,16 @@ getData(): any {
     }
   });
 
+  // Transform enemies to include the Map key (tokenId if available, else actor id)
+  const enemiesArr = [...this.enemies.entries()].map(([mapKey, enemy]) => ({
+    ...enemy,
+    mapKey, // Add the actual Map key so the template can use it for removal
+    cr: formatCR(Number(enemy.cr) || 0) // Format CR with Unicode fractions
+  }));
+
   return {
     party: partyArr,
-    enemies: [...this.enemies.values()],
+    enemies: enemiesArr,
     el: elInt,               // integer EL for UI
     encounterInfo: encounterInfo,
     elBreakdown: elBreakdown,
@@ -328,9 +386,10 @@ activateListeners(html: JQuery) {
       return;
     }
     
-    const id = (ev.currentTarget as HTMLElement).dataset.id;
-    if (id) {
-      const actor = (game as any).actors?.get(id);
+    // Use data-actor-id to get the actor (not the token ID from data-id)
+    const actorId = (ev.currentTarget as HTMLElement).dataset.actorId;
+    if (actorId) {
+      const actor = (game as any).actors?.get(actorId);
       if (actor?.sheet) {
         (actor.sheet as any).render(true);
       }
@@ -340,18 +399,28 @@ activateListeners(html: JQuery) {
   
 /** --- CR extraction used for enemies (unified across all adders) --- */
 private getActorCR(a: Actor): number {
-  // Try the common CR property paths first (D35E often stores under .details.cr.value)
+  // D35E system stores CR in different ways:
+  // - system.details.totalCr = adjusted CR with templates (PRIORITY - this is what we want!)
+  // - system.details.cr = base CR without templates
+  // - system.details.cr.total or system.details.cr.value = alternative structures
+  
   const crPaths = [
-    "system.details.cr.value",   // primary (most D35E sheets)
-    "system.details.cr",         // sometimes a plain number
-    "data.details.cr.value",     // legacy fallback
-    "data.details.cr"            // legacy fallback
+    "system.details.totalCr",     // D35E: adjusted CR (includes templates!) - CHECK THIS FIRST
+    "system.details.cr.total",    // alternative adjusted CR format
+    "system.attributes.cr.total", // yet another alternative
+    "system.details.cr.value",    // structured base CR
+    "system.details.cr",          // flat base CR number
+    "data.details.totalCr",       // legacy adjusted
+    "data.details.cr.total",      // legacy adjusted
+    "data.details.cr.value",      // legacy base CR
+    "data.details.cr"             // legacy flat number
   ];
 
   for (const p of crPaths) {
     // @ts-ignore
     const v = Number(getProperty(a, p));
-    if (Number.isFinite(v) && v > 0) return Math.round(v); // keep integer behavior
+    // Preserve fractional CRs (0.125, 0.25, 0.33, 0.5, etc.) - don't round them to 0!
+    if (Number.isFinite(v) && v > 0) return v;
   }
 
   // Derive from level if no explicit CR present
@@ -361,7 +430,7 @@ private getActorCR(a: Actor): number {
   const level = Number(getProperty(a, "system.details.level.value")) || 0;
 
   if (type === "character") {
-    // RAW quick heuristic: PC CR ≈ Character Level (adjust here if you use NPC-class rules)
+    // RAW quick heuristic: PC CR ≈ Character Level
     return Math.max(1, Math.floor(level));
   }
 
@@ -374,24 +443,23 @@ private getActorCR(a: Actor): number {
 private addHostileSceneTokensToEnemies(): void {
   const HOSTILE = (CONST as any)?.TOKEN_DISPOSITIONS?.HOSTILE ?? -1;
   const tokens = canvas.tokens?.placeables ?? [];
-  const actors = tokens
-    .filter(t => (t as any).document?.disposition === HOSTILE)
-    .map(t => t.actor)
-    .filter((a): a is Actor => !!a);
+  const hostileTokens = tokens.filter(t => (t as any).document?.disposition === HOSTILE);
 
   let added = 0;
-  for (const a of actors) {
-    if (!a?.id || this.enemies.has(a.id)) continue;
+  for (const t of hostileTokens) {
+    const a = t.actor;
+    const tokenId = (t as any).id;
+    if (!a?.id || !tokenId || this.enemies.has(tokenId)) continue;
 
     const name = a.name ?? "Unknown";
     // @ts-ignore
     const img  = a.img ?? a.prototypeToken?.texture?.src ?? "icons/svg/skull.svg";
     const cr   = this.getActorCR(a); // <-- unified CR conversion
 
-    this.enemies.set(a.id, { id: a.id, name, img, cr });
+    this.enemies.set(tokenId, { id: a.id, tokenId, name, img, cr });
     added++;
   }
-  ui.notifications?.info(`Added ${added} hostile actor(s) from this scene.`);
+  ui.notifications?.info(`Added ${added} hostile token(s) from this scene.`);
   this.render(true);
 }
 
@@ -399,24 +467,23 @@ private addHostileSceneTokensToEnemies(): void {
 private addNeutralSceneTokensToEnemies(): void {
   const NEUTRAL = (CONST as any)?.TOKEN_DISPOSITIONS?.NEUTRAL ?? 0;
   const tokens = canvas.tokens?.placeables ?? [];
-  const actors = tokens
-    .filter(t => (t as any).document?.disposition === NEUTRAL)
-    .map(t => t.actor)
-    .filter((a): a is Actor => !!a);
+  const neutralTokens = tokens.filter(t => (t as any).document?.disposition === NEUTRAL);
 
   let added = 0;
-  for (const a of actors) {
-    if (!a?.id || this.enemies.has(a.id)) continue;
+  for (const t of neutralTokens) {
+    const a = t.actor;
+    const tokenId = (t as any).id;
+    if (!a?.id || !tokenId || this.enemies.has(tokenId)) continue;
 
     const name = a.name ?? "Unknown";
     // @ts-ignore
     const img  = a.img ?? a.prototypeToken?.texture?.src ?? "icons/svg/eye.svg";
     const cr   = this.getActorCR(a); // <-- unified CR conversion
 
-    this.enemies.set(a.id, { id: a.id, name, img, cr });
+    this.enemies.set(tokenId, { id: a.id, tokenId, name, img, cr });
     added++;
   }
-  ui.notifications?.info(`Added ${added} neutral actor(s) from this scene.`);
+  ui.notifications?.info(`Added ${added} neutral token(s) from this scene.`);
   this.render(true);
 }
 
@@ -595,10 +662,11 @@ private addSelectedToEnemies(): void {
 
   for (const t of selected) {
     const a: Actor | undefined = (t as any).actor;
-    if (!a) { skipped++; continue; }
+    const tokenId = (t as any).id;
+    if (!a || !tokenId) { skipped++; continue; }
 
-    // Don’t duplicate party members or existing enemies
-    if (this.party.has(a.id) || this.enemies.has(a.id)) { skipped++; continue; }
+    // Don't duplicate party members or existing enemies (use token ID for enemies now)
+    if (this.party.has(a.id) || this.enemies.has(tokenId)) { skipped++; continue; }
 
     // Unified CR extraction (matches hostile/neutral adders)
     const cr = this.getActorCR(a);
@@ -609,8 +677,8 @@ private addSelectedToEnemies(): void {
     const img = a.img ?? a.prototypeToken?.texture?.src ?? "icons/svg/skull.svg";
     const name = a.name ?? "Enemy";
 
-    const entry: EnemyEntry = { id: a.id, name, img, cr: Number(cr) };
-    this.enemies.set(a.id, entry);
+    const entry: EnemyEntry = { id: a.id, tokenId, name, img, cr: Number(cr) };
+    this.enemies.set(tokenId, entry);
     added++;
   }
 
@@ -623,13 +691,14 @@ private addSelectedToEnemies(): void {
     const targets = game.user?.targets ?? new Set();
     if (!targets.size) return ui.notifications?.warn("Target one or more creatures first.");
     let added = 0, skipped = 0;
-    for (const t of targets as any as Token[]) {
+    for (const t of targets as any) {
       const a = (t as any).actor as Actor | null;
-      if (!a) { skipped++; continue; }
+      const tokenId = (t as any).id;
+      if (!a || !tokenId) { skipped++; continue; }
       if (this.party.has(a.id)) { skipped++; continue; }
       const crRaw = D35EAdapter.getCR(a); if (!crRaw) { skipped++; continue; }
-      const entry: EnemyEntry = { id: a.id, name: a.name ?? "Enemy", img: a.img ?? "", cr: Number(crRaw) };
-      if (!this.enemies.has(a.id)) { this.enemies.set(a.id, entry); added++; } else skipped++;
+      const entry: EnemyEntry = { id: a.id, tokenId, name: a.name ?? "Enemy", img: a.img ?? "", cr: Number(crRaw) };
+      if (!this.enemies.has(tokenId)) { this.enemies.set(tokenId, entry); added++; } else skipped++;
     }
     ui.notifications?.info(`Enemies +${added}${skipped ? `, skipped ${skipped}` : ""}`);
     this.render();
@@ -644,7 +713,8 @@ private addSelectedToEnemies(): void {
   // Recompute encounter preview (mirror your getData preview branch)
   const crMap = new Map<number, number>();
   for (const e of this.enemies.values()) {
-    const cr = Math.max(1, Math.floor(Number(e.cr) || 0));
+    // Preserve fractional CRs (0.125, 0.25, 0.33, 0.5, etc.)
+    const cr = Math.max(0.125, Number(e.cr) || 1);
     crMap.set(cr, (crMap.get(cr) ?? 0) + 1);
   }
   const groupELs: number[] = [];

@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.0.1 - Bug Fixes and Formula Improvements
+
+### Fixed
+- **Fractional CR Support**: Now correctly handles fractional CR creatures (CR 1/2, 1/4, 1/8, etc.) for swarms and weak monsters
+- **Token-Based Enemy Tracking**: Fixed issue where enemies were tracked by actor ID instead of token ID, preventing unlinked token enemies from being added separately
+- **Adjusted CR Handling**: Corrected CR calculation to use totalCr field for creatures with adjusted CR values
+- **XP Bar Drag**: Fixed issue where XP bar stopped being draggable after gaining XP (event listeners now properly re-attach on re-render)
+
+### Improved
+- **Party Level Calculation**: Updated to use power-based formula (2^(level/2) ÷ 4) for more accurate difficulty assessment with non-standard party sizes
+- **XP Formula Accuracy**: Completely rewritten `awardRaw35()` to match official d20srd.org XP table values with special cases for even/odd ELs
+- **UI Tooltips**: Enhanced explanations of party level vs average level calculations
+- **Fractional CR Display**: Now displays fractional CRs using Unicode fraction characters (¼, ½, ⅛, etc.) for better readability
+
+### Documentation
+- Added XP method comparison guide explaining differences between 3.5e, 3.0e, and the SRD calculator method
+- Clarified that module follows official DMG rules, not SRD calculator methods
+
 ## 1.0.0 - Initial Release
 
 ### Features
