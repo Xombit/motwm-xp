@@ -43,7 +43,7 @@
 
 **Key principle:** Per-creature awards averaged across party.
 
-**Note:** This method is not found in official 3.5e or 3.0e DMG rules. It appears to be a hybrid approach used by some online calculators.
+**Note:** This method is not found in official 3.5e or 3.0e DMG rules. It appears to be a hybrid approach used by the SRD calculator.
 
 ---
 
