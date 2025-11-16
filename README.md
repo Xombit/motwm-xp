@@ -135,5 +135,5 @@ See [CHANGELOG.md](CHANGELOG.md) for full version history.
 ## Credits
 
 Created for **Melody of the Weirding Mover: Ahvindamahdorah’s Demise** By Xombit the Zombie.  
-Thanks to the D35E system maintainers and the FoundryVTT community for APIs and examples.
+Thanks to the D35E system maintainers including Rughalt and RevJake, Axecleft for initial compatibility testing, Landryan for bugfix testing, and the FoundryVTT community for APIs and examples.
 
