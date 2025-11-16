@@ -1,6 +1,6 @@
 # Melody of the Weirding Mover — XP & Encounter Manager
 
-**Version:** v1.0.0  
+**Version:** v1.0.2  
 **For:** Foundry VTT v11 • D&D 3.5e (D35E ≥ 2.4.3)
 
 A fast, GM-friendly encounter calculator and XP manager with a modern UI and a slick MMO-style player XP bar. Built for 3.5e RAW, with sensible features for real tables.
@@ -30,9 +30,9 @@ This module gives GMs a live **Encounter Level (EL)** calculator, multiple **XP 
 - **Party-size adjustment** (baseline 4 PCs) so smaller/larger groups read correctly.
 - **Live XP preview** per actor before you commit.
 - **Two award modes:**  
-  - **RAW 3.5e (per-PC):** table lookup by each character's level vs. EL.  
-  - **Classic 3.0 (split pot):** uses a party pot based on APL vs. CR, then splits among earners.
-- **Manual awards** in **points** or **segments** (“bubbles”), with a reason that’s posted to chat.
+  - **D&D 3.5e (Individual XP):** Official RAW method - awards XP per individual monster based on PC level vs monster CR, divided by party size.
+  - **D&D 3.0 (split pot):** Uses a party pot based on APL vs. CR from the 3.0 DMG table, then splits among earners.
+- **Manual awards** in **points** or **segments** ("bubbles"), with a reason that's posted to chat.
 - **Encounter difficulty tag** (Easy / Even / Challenging / Very Challenging / High Risk).
 - **Smart token tools:** add **online assigned PCs**, **all assigned PCs**, **friendly tokens** (scene), **selected to party**, **selected to enemies**, **all hostile tokens**, **all neutral tokens**.
 - **Rollback** the last XP grant if you fat-finger something.
@@ -71,10 +71,12 @@ This module gives GMs a live **Encounter Level (EL)** calculator, multiple **XP 
 ## Advanced Details
 
 ### Encounter Level (EL) Calculation
-The calculator follows the **Dungeon Master’s Guide** logic for turning creature CRs into a single EL.
+The calculator follows the **Dungeon Master's Guide** logic for turning creature CRs into a single EL.
 
 - **Identical creatures combine in doublings:** two of the same CR act as **EL +2**; four as **EL +4**; eight as **EL +6**, etc.
 - **Mixed encounters**: groups are combined from highest CR downward; lesser creatures contribute less to the final EL.
+- **Decimal CR support**: Fractional and decimal CRs (e.g., CR 7.5) are fully supported with linear interpolation for precise XP calculations.
+- **Epic levels**: Full support for character levels 1-40 with proper XP progression.
 - **Breakdown toggle**: show the exact steps used to reach the final EL (great for tuning and sanity checks).
 - **Party-size adjustment**: EL is normalized to a 4-PC baseline, then adjusted up/down for your actual party count.
 
@@ -87,8 +89,8 @@ The calculator follows the **Dungeon Master’s Guide** logic for turning creatu
 ## Settings
 
 - **Award Mode:**  
-  - **RAW 3.5e (per-PC)** - Default  
-  - **Classic 3.0 (split pot)** - Uses the old style
+  - **D&D 3.5e (Individual XP)** - Default, official RAW method
+  - **D&D 3.0 (split pot)** - Uses the old 3.0 style split pot method
 - **Chat Broadcasting:** toggle XP award messages to the chat log.
 - **Player Bar Visibility:** allow players to show/hide the XP bar.
 - **XP Track:** the bar respects the D35E system's `experienceRate` (Fast/Medium/Slow) if your world uses it.
@@ -118,13 +120,15 @@ The calculator follows the **Dungeon Master’s Guide** logic for turning creatu
 
 ---
 
-## Changelog (v1.0.0)
+## Changelog (v1.0.2)
 
-- Added **Rollback** for last XP grant.
-- Expanded **token adders** (hostile/neutral scene buttons).
-- Improved **CR detection** for PC-sheet enemies (consistent across all adders).
-- Tightened **EL input** and preview refresh.
-- Added **tooltip** explaining that party size adjustment is for difficulty estimation only.
+
+- **3.5 XP Split** Corrected logic for 3.5 XP award party split.
+- **XP bar** now shows/hides instantly when toggled (no reload required).
+- **Decimal CR interpolation** for both award methods with epic level support (1-40).
+- **Cleaner console** with debug logging removed (errors still logged).
+
+See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
 ---
 

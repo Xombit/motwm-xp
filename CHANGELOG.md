@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.2 - UX Improvements and Polish
+
+### Fixed
+- **3.5 Mode XP Split**: Now follows the correct XP splitting logic for 3.5 D&D
+
+### Improved
+- **XP Bar Responsiveness**: XP bar now shows/hides instantly when toggled in settings (no reload required)
+- **Cleaner Console Output**: Removed debug logging during normal operation to reduce console noise and bandwidth
+
+### Enhanced
+- **Decimal CR Interpolation**: Both XP award methods now support decimal CR values (e.g., CR 7.5) with linear interpolation
+- **Epic Level Support**: Extended support for levels 1-40 with proper XP calculations
+
 ## 1.0.1 - Bug Fixes and Formula Improvements
 
 ### Fixed

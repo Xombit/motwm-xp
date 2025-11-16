@@ -18,9 +18,16 @@ export function combineELs(els: number[]): number {
     const b = arr.pop()!; // second largest
     const diff = Math.abs(a-b);
     let combined = a;
+    
+    // DMG 3.5e rules (p. 49):
+    // - Same EL (diff 0): +2
+    // - 1-2 below: +1
+    // - 3-7 below: +1 (weaker but still contributes)
+    // - 8+ below: +0 (too weak to matter)
     if (diff === 0) combined = a + 2;
-    else if (diff === 1 || diff === 2) combined = a + 1;
-    else combined = a; // smaller negligible
+    else if (diff >= 1 && diff <= 7) combined = a + 1;
+    else combined = a; // diff 8+: too weak to matter
+    
     arr.push(combined);
     arr.sort((x,y)=>x-y);
   }

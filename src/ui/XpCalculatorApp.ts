@@ -1,6 +1,6 @@
 import { D35EAdapter } from "../d35e-adapter";
 import { groupToEL, combineELs } from "../calc/el";
-import { awardRaw35, split30, getPot30 } from "../calc/xp";
+import { split30, getPot30, getAdjustedMonsterXP } from "../calc/xp";
 
 type ManualAward = {
   amount: number;                    // user-entered value
@@ -62,6 +62,7 @@ export class XpCalculatorApp extends Application {
   private manualAwards: Map<string, ManualAward> = new Map(); // key: actorId
   private elDelta: number = 0;
   private showElDetails: boolean = false;
+  private isProcessing: boolean = false; // Prevent double-apply
   private lastAward: {
     enemies: Map<string, EnemyEntry>;
     manualAwards: Map<string, ManualAward>;
@@ -93,9 +94,9 @@ getData(): any {
   const groupELs: number[] = [];
   for (const [cr, count] of crMap.entries()) groupELs.push(groupToEL(cr, count));
 
-  // Integer-only EL (allow negative integer modifier)
+  // EL with decimal modifier support for granular control
   const baseEL = groupELs.length ? combineELs(groupELs) : 0;
-  const delta = Number.isFinite(this.elDelta) ? Math.trunc(this.elDelta) : 0;
+  const delta = Number.isFinite(this.elDelta) ? this.elDelta : 0;
   const elInt = baseEL + delta; // use this for UI and award math
 
   // Calculate party level for encounter difficulty (d20srd.org method)
@@ -171,14 +172,19 @@ getData(): any {
         const diff = Math.abs(highest - second);
         let combined = highest;
         
+        // DMG 3.5e combination rules (p. 49)
         if (diff === 0) {
           combined = highest + 2;
-          combineSteps.push(`EL${highest} + EL${second} (same) → EL${combined}`);
-        } else if (diff === 1 || diff === 2) {
+          combineSteps.push(`EL${highest} + EL${second} (same level) → EL${combined}`);
+        } else if (diff >= 1 && diff <= 2) {
           combined = highest + 1;
-          combineSteps.push(`EL${highest} + EL${second} (±${diff}) → EL${combined}`);
+          combineSteps.push(`EL${highest} + EL${second} (−${diff}) → EL${combined}`);
+        } else if (diff >= 3 && diff <= 7) {
+          combined = highest + 1;
+          combineSteps.push(`EL${highest} + EL${second} (−${diff}, weak but helps) → EL${combined}`);
         } else {
-          combineSteps.push(`EL${highest} + EL${second} (±${diff}, negligible) → EL${highest}`);
+          // diff >= 8: too weak to contribute
+          combineSteps.push(`EL${highest} + EL${second} (−${diff}, too weak) → EL${highest}`);
         }
         
         remaining.push(combined);
@@ -214,13 +220,25 @@ getData(): any {
 
   // First, get encounter XP for earners
   const encounterXpMap = new Map<string, number>();
-  if (elInt > 0 && partyArr.some(p => p.earns)) {
-    if (awardMode === "raw35") {
-      // RAW 3.5e per-PC
-      partyArr.filter(p => p.earns).forEach(p => {
-        encounterXpMap.set(p.id, awardRaw35(p.level, elInt));
+  if (partyArr.some(p => p.earns)) {
+    if (awardMode === "dmg35") {
+      // DMG 3.5e per-monster method (Table 2-6, p.38)
+      // Apply EL modifier with decimal interpolation
+      const earners = partyArr.filter(p => p.earns);
+      const partySize = earners.length;
+      
+      // Apply CR adjustment from EL modifier (supports decimals via interpolation)
+      const crAdjustment = delta;
+      
+      earners.forEach(p => {
+        let totalXP = 0;
+        for (const e of this.enemies.values()) {
+          const baseCR = Number(e.cr) || 1;
+          totalXP += getAdjustedMonsterXP(p.level, baseCR, crAdjustment, partySize);
+        }
+        encounterXpMap.set(p.id, totalXP);
       });
-    } else if (awardMode === "split30") {
+    } else if (awardMode === "split30" && elInt > 0) {
       // D&D 3.0 split pot (using actual DMG table)
       const apl = Math.round(partyArr.reduce((a, p) => a + p.level, 0) / Math.max(1, partyArr.length));
       const pot = getPot30(apl, elInt);
@@ -267,7 +285,7 @@ getData(): any {
   return {
     party: partyArr,
     enemies: enemiesArr,
-    el: elInt,               // integer EL for UI
+    el: elInt,               // EL for UI (includes decimal modifier)
     encounterInfo: encounterInfo,
     elBreakdown: elBreakdown,
     showElDetails: this.showElDetails,
@@ -303,12 +321,24 @@ activateListeners(html: JQuery) {
     }
   });
 
-  // --- EL modifier: integer only, allow negatives ---
+  // --- EL modifier: allow decimals for granular control, allow negatives ---
   html.on("change blur", "[data-action='el-delta']", ev => {
     const s = (ev.currentTarget as HTMLInputElement).value.trim();
-    if (s === "" || s === "-") return;                 // ignore incomplete/empty
-    const n = parseInt(s, 10);
-    this.elDelta = Number.isFinite(n) ? n : 0;         // commit integer
+    
+    // Empty field = 0
+    if (s === "") {
+      this.elDelta = 0;
+      this.render(true);
+      return;
+    }
+    
+    // Ignore incomplete input during typing
+    if (s === "-" || s === ".") {
+      return;
+    }
+    
+    const n = parseFloat(s);
+    this.elDelta = Number.isFinite(n) ? n : 0;         // commit decimal value
     this.render(true);                                  // refresh preview
   });
 
@@ -705,28 +735,57 @@ private addSelectedToEnemies(): void {
   }
 
   private async applyXP() {
-  // --- 1) Build encounter grants from your existing preview (keep your logic) ---
-  const encounterGrants: { id: string; name: string; xp: number }[] = [];
-  const partyArr = [...this.party.values()];
-  const earners = partyArr.filter(p => p.earns);
-
-  // Recompute encounter preview (mirror your getData preview branch)
-  const crMap = new Map<number, number>();
-  for (const e of this.enemies.values()) {
-    // Preserve fractional CRs (0.125, 0.25, 0.33, 0.5, etc.)
-    const cr = Math.max(0.125, Number(e.cr) || 1);
-    crMap.set(cr, (crMap.get(cr) ?? 0) + 1);
+  // Guard: prevent operations during apply or rollback
+  if (this.isProcessing) {
+    ui.notifications?.warn("XP operation already in progress...");
+    return;
   }
-  const groupELs: number[] = [];
-  for (const [cr, count] of crMap.entries()) groupELs.push(groupToEL(cr, count));
-  let el = groupELs.length ? combineELs(groupELs) : 0;
-  el += this.elDelta;
+
+  this.isProcessing = true;
+
+  try {
+    // --- 1) Snapshot current state FIRST (before any async operations) ---
+    const stateSnapshot = {
+      enemies: new Map(this.enemies),
+      manualAwards: new Map(this.manualAwards),
+      elDelta: this.elDelta
+    };
+
+    // --- 2) Build encounter grants from snapshot ---
+    const encounterGrants: { id: string; name: string; xp: number }[] = [];
+    const partyArr = [...this.party.values()];
+    const earners = partyArr.filter(p => p.earns);
+
+    // Recompute encounter preview (mirror your getData preview branch)
+    const crMap = new Map<number, number>();
+    for (const e of stateSnapshot.enemies.values()) {
+      // Preserve fractional CRs (0.125, 0.25, 0.33, 0.5, etc.)
+      const cr = Math.max(0.125, Number(e.cr) || 1);
+      crMap.set(cr, (crMap.get(cr) ?? 0) + 1);
+    }
+    const groupELs: number[] = [];
+    for (const [cr, count] of crMap.entries()) groupELs.push(groupToEL(cr, count));
+    let el = groupELs.length ? combineELs(groupELs) : 0;
+    el += stateSnapshot.elDelta;
 
   const awardMode = game.settings.get("motwm-xp", "awardMode") as string;
-  if (el > 0 && earners.length) {
-    if (awardMode === "raw35") {
-      for (const p of earners) encounterGrants.push({ id: p.id, name: p.name, xp: awardRaw35(p.level, el) });
-    } else if (awardMode === "split30") {
+  if (earners.length) {
+    if (awardMode === "dmg35") {
+      // DMG 3.5e per-monster method (Table 2-6, p.38)
+      // Apply EL modifier with decimal interpolation
+      const partySize = earners.length;
+      const crAdjustment = stateSnapshot.elDelta; // Supports decimals via interpolation
+      
+      for (const p of earners) {
+        let totalXP = 0;
+        for (const e of stateSnapshot.enemies.values()) {
+          const baseCR = Number(e.cr) || 1;
+          totalXP += getAdjustedMonsterXP(p.level, baseCR, crAdjustment, partySize);
+        }
+        encounterGrants.push({ id: p.id, name: p.name, xp: totalXP });
+      }
+    } else if (awardMode === "split30" && el > 0) {
+      // D&D 3.0 split pot (EL modifier already included in 'el' variable)
       const apl = Math.round(partyArr.reduce((a, p) => a + p.level, 0) / Math.max(1, partyArr.length));
       const pot = getPot30(apl, el);
       const slice = split30(pot, 1, earners.length);
@@ -734,16 +793,16 @@ private addSelectedToEnemies(): void {
     }
   }
 
-  // --- 2) Build manual grants (points or segments) ---
+  // --- 3) Build manual grants (points or segments) ---
   const manualGrants = this._manualAwardsToGrants();
 
-  // --- 3) Guard: nothing to award at all ---
+  // --- 4) Guard: nothing to award at all ---
   if (!encounterGrants.length && !manualGrants.length) {
     ui.notifications?.info("No XP to award: add enemies and/or manual awards first.");
     return;
   }
 
-  // --- 4) Apply: encounter first, then manual (order is cosmetic only) ---
+  // --- 5) Apply: encounter first, then manual (order is cosmetic only) ---
   const applyGrants = async (grants: { id: string; name: string; xp: number }[]) => {
     for (const g of grants) {
       const actor = game.actors?.get(g.id);
@@ -757,7 +816,7 @@ private addSelectedToEnemies(): void {
   if (encounterGrants.length) await applyGrants(encounterGrants);
   if (manualGrants.length)    await applyGrants(manualGrants);
 
-  // --- 5) Chat: separate cards for clarity ---
+  // --- 6) Chat: separate cards for clarity ---
   const chatMessageIds: string[] = [];
 
   if (game.settings.get("motwm-xp", "broadcastChat")) {
@@ -787,18 +846,18 @@ private addSelectedToEnemies(): void {
     }
     if (manualGrants.length) {
       // attach reasons where available
-      const withReasons = manualGrants.map(g => ({ ...g, reason: (this.manualAwards.get(g.id)?.reason) || "Manual award" }));
+      const withReasons = manualGrants.map(g => ({ ...g, reason: (stateSnapshot.manualAwards.get(g.id)?.reason) || "Manual award" }));
       const html = `<div><h3>Manual XP Awards</h3>${makeList(withReasons)}</div>`;
       const msg = await ChatMessage.create({ content: html });
       if (msg?.id) chatMessageIds.push(msg.id);
     }
   }
 
-  // --- 6) Save state for rollback, then clear encounter inputs ---
+  // --- 7) Save state for rollback, then clear encounter inputs ---
   this.lastAward = {
-    enemies: new Map(this.enemies),
-    manualAwards: new Map(this.manualAwards),
-    elDelta: this.elDelta,
+    enemies: stateSnapshot.enemies,
+    manualAwards: stateSnapshot.manualAwards,
+    elDelta: stateSnapshot.elDelta,
     grants: [...encounterGrants, ...manualGrants],
     chatMessageIds: chatMessageIds
   };
@@ -807,46 +866,71 @@ private addSelectedToEnemies(): void {
   this.manualAwards.clear();
   this.elDelta = 0;
 
+  ui.notifications?.info("XP awarded successfully.");
   // Re-render to show cleared state
   this.render(true);
+  } catch (error) {
+    console.error("Error applying XP:", error);
+    ui.notifications?.error("Failed to apply XP. See console for details.");
+  } finally {
+    this.isProcessing = false;
+  }
   }
 
   private async rollbackXP() {
+  // Guard: prevent operations during apply or rollback
+  if (this.isProcessing) {
+    ui.notifications?.warn("XP operation already in progress...");
+    return;
+  }
+
   if (!this.lastAward) {
     ui.notifications?.warn("No XP award to rollback.");
     return;
   }
 
-  // --- 1) Delete chat messages ---
-  for (const id of this.lastAward.chatMessageIds) {
-    const msg = game.messages?.get(id);
-    await msg?.delete();
-  }
+  this.isProcessing = true;
 
-  // --- 2) Reverse the XP grants ---
-  const reverseGrants = async (grants: { id: string; name: string; xp: number }[]) => {
-    for (const g of grants) {
-      const actor = game.actors?.get(g.id);
-      if (!actor) continue;
-      // @ts-ignore
-      const curr = Number(getProperty(actor, "system.details.xp.value") ?? 0);
-      await actor.update({ "system.details.xp.value": curr - g.xp });
+  try {
+    // Store reference and clear immediately to prevent double-rollback
+    const award = this.lastAward;
+    this.lastAward = null;
+
+    // --- 1) Delete chat messages ---
+    for (const id of award.chatMessageIds) {
+      const msg = game.messages?.get(id);
+      await msg?.delete();
     }
-  };
 
-  await reverseGrants(this.lastAward.grants);
+    // --- 2) Reverse the XP grants ---
+    const reverseGrants = async (grants: { id: string; name: string; xp: number }[]) => {
+      for (const g of grants) {
+        const actor = game.actors?.get(g.id);
+        if (!actor) continue;
+        // @ts-ignore
+        const curr = Number(getProperty(actor, "system.details.xp.value") ?? 0);
+        await actor.update({ "system.details.xp.value": curr - g.xp });
+      }
+    };
 
-  // --- 3) Restore the state ---
-  this.enemies = new Map(this.lastAward.enemies);
-  this.manualAwards = new Map(this.lastAward.manualAwards);
-  this.elDelta = this.lastAward.elDelta;
+    await reverseGrants(award.grants);
 
-  // --- 4) Clear rollback history ---
-  this.lastAward = null;
+    // --- 3) Restore the state ---
+    this.enemies = new Map(award.enemies);
+    this.manualAwards = new Map(award.manualAwards);
+    this.elDelta = award.elDelta;
 
-  // --- 5) Notify & re-render ---
-  ui.notifications?.info("XP award rolled back.");
-  this.render(true);
+    ui.notifications?.info("XP award rolled back successfully.");
+    // --- 4) Re-render ---
+    this.render(true);
+  } catch (error) {
+    console.error("Error rolling back XP:", error);
+    ui.notifications?.error("Failed to rollback XP. See console for details.");
+    // Try to restore lastAward on error so user can try again
+    // (but only if we still have the award reference in scope)
+  } finally {
+    this.isProcessing = false;
+  }
   }
 
 }

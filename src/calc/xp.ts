@@ -14,120 +14,127 @@ export function systemTotalXPForLevel(level: number): number {
 /** Total number of bubble segments in the XP bar UI */
 export const TOTAL_BUBBLE_SEGMENTS = 13 + 1/3;
 
-/** ===== Award methods (we'll wire exact tables shortly) ===== */
+/** ===== Award methods ===== */
 
 /** 
- * RAW 3.5e per-PC award: PC Level vs Encounter Level
- * Based on the official d20srd.org encounter calculator
- * (https://www.d20srd.org/extras/d20encountercalculator/)
- * 
- * This matches the community-standard calculator which uses the DMG formulas
- * with special case adjustments for specific level/EL combinations.
- * 
- * Key rules:
- * - Encounters 8+ levels below party: 0 XP (too trivial)
- * - Encounters 8+ levels above party: 0 XP (too dangerous)
- * - Low level PCs (1-3) have special handling
- * - Specific adjustments for even/odd ELs at certain PC levels
+ * D&D 3.5 XP Table
  */
-export function awardRaw35(pcLevel: number, encounterLevel: number): number {
-  let x = pcLevel;
-  let y = encounterLevel;
+function getBaseXPForSingleMonster(pcLevel: number, monsterCR: number): number {
+  const TABLE_2_6: Record<number, Record<number, number>> = {
+    1: { 1: 300, 2: 600, 3: 900, 4: 1350, 5: 1800, 6: 2700, 7: 3600, 8: 5400, 9: 7200, 10: 10800 },
+    2: { 1: 300, 2: 600, 3: 900, 4: 1350, 5: 1800, 6: 2700, 7: 3600, 8: 5400, 9: 7200, 10: 10800 },
+    3: { 1: 300, 2: 600, 3: 900, 4: 1350, 5: 1800, 6: 2700, 7: 3600, 8: 5400, 9: 7200, 10: 10800 },
+    4: { 1: 300, 2: 600, 3: 800, 4: 1200, 5: 1600, 6: 2400, 7: 3200, 8: 4800, 9: 6400, 10: 9600, 11: 12800 },
+    5: { 1: 300, 2: 500, 3: 750, 4: 1000, 5: 1500, 6: 2250, 7: 3000, 8: 4500, 9: 6000, 10: 9000, 11: 12000, 12: 18000 },
+    6: { 1: 300, 2: 450, 3: 600, 4: 900, 5: 1200, 6: 1800, 7: 2700, 8: 3600, 9: 5400, 10: 7200, 11: 10800, 12: 14400, 13: 21600 },
+    7: { 1: 263, 2: 350, 3: 525, 4: 700, 5: 1050, 6: 1400, 7: 2100, 8: 3150, 9: 4200, 10: 6300, 11: 8400, 12: 12600, 13: 16800, 14: 25200 },
+    8: { 1: 200, 2: 300, 3: 400, 4: 600, 5: 800, 6: 1200, 7: 1600, 8: 2400, 9: 3600, 10: 4800, 11: 7200, 12: 9600, 13: 14400, 14: 19200, 15: 28800 },
+    9: { 1: 0, 2: 225, 3: 338, 4: 450, 5: 675, 6: 900, 7: 1350, 8: 1800, 9: 2700, 10: 4050, 11: 5400, 12: 8100, 13: 10800, 14: 16200, 15: 21600, 16: 32400 },
+    10: { 1: 0, 2: 0, 3: 250, 4: 375, 5: 500, 6: 750, 7: 1000, 8: 1500, 9: 2000, 10: 3000, 11: 4500, 12: 6000, 13: 9000, 14: 12000, 15: 18000, 16: 24000, 17: 36000 },
+    11: { 1: 0, 2: 0, 3: 0, 4: 275, 5: 413, 6: 550, 7: 825, 8: 1100, 9: 1650, 10: 2200, 11: 3300, 12: 4950, 13: 6600, 14: 9900, 15: 13200, 16: 19800, 17: 26400, 18: 39600 },
+    12: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 300, 6: 450, 7: 600, 8: 900, 9: 1200, 10: 1800, 11: 2400, 12: 3600, 13: 5400, 14: 7200, 15: 10800, 16: 14400, 17: 21600, 18: 28800, 19: 43200 },
+    13: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 325, 7: 488, 8: 650, 9: 975, 10: 1300, 11: 1950, 12: 2600, 13: 3900, 14: 5850, 15: 7800, 16: 11700, 17: 15600, 18: 23400, 19: 31200, 20: 46800 },
+    14: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 350, 8: 525, 9: 700, 10: 1050, 11: 1400, 12: 2100, 13: 2800, 14: 4200, 15: 6300, 16: 8400, 17: 12600, 18: 16800, 19: 25200, 20: 33600 },
+    15: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 375, 9: 563, 10: 750, 11: 1125, 12: 1500, 13: 2250, 14: 3000, 15: 4500, 16: 6750, 17: 9000, 18: 13500, 19: 18000, 20: 27000 },
+    16: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 400, 10: 600, 11: 800, 12: 1200, 13: 1600, 14: 2400, 15: 3200, 16: 4800, 17: 7200, 18: 9600, 19: 14400, 20: 19200 },
+    17: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 425, 11: 638, 12: 850, 13: 1275, 14: 1700, 15: 2550, 16: 3400, 17: 5100, 18: 7650, 19: 10200, 20: 15300 },
+    18: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 450, 12: 675, 13: 900, 14: 1350, 15: 1800, 16: 2700, 17: 3600, 18: 5400, 19: 8100, 20: 10800 },
+    19: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 475, 13: 713, 14: 950, 15: 1425, 16: 1900, 17: 2850, 18: 3800, 19: 5700, 20: 8550 },
+    20: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0, 13: 500, 14: 750, 15: 1000, 16: 1500, 17: 2000, 18: 3000, 19: 4000, 20: 6000, 21: 11400, 22: 12000, 23: 22800, 24: 24000, 25: 36000, 26: 48000, 27: 72000, 28: 96000 },
+    21: { 13: 0, 14: 0, 15: 525, 16: 788, 17: 1050, 18: 1575, 19: 2100, 20: 3150, 21: 4200, 22: 6300, 23: 8400, 24: 12600, 25: 16800, 26: 25200, 27: 33600, 28: 50400, 29: 67200, 30: 100800 },
+    22: { 14: 0, 15: 0, 16: 550, 17: 825, 18: 1100, 19: 1650, 20: 2200, 21: 3300, 22: 4400, 23: 6600, 24: 8800, 25: 13200, 26: 17600, 27: 26400, 28: 35200, 29: 52800, 30: 70400, 31: 105600 },
+    23: { 15: 0, 16: 0, 17: 575, 18: 863, 19: 1150, 20: 1725, 21: 2300, 22: 3450, 23: 4600, 24: 6900, 25: 9200, 26: 13800, 27: 18400, 28: 27600, 29: 36800, 30: 55200, 31: 73600, 32: 110400 },
+    24: { 16: 0, 17: 0, 18: 600, 19: 900, 20: 1200, 21: 1800, 22: 2400, 23: 3600, 24: 4800, 25: 7200, 26: 9600, 27: 14400, 28: 19200, 29: 28800, 30: 38400, 31: 57600, 32: 76800, 33: 115200 },
+    25: { 17: 0, 18: 0, 19: 625, 20: 938, 21: 1250, 22: 1875, 23: 2500, 24: 3750, 25: 5000, 26: 7500, 27: 10000, 28: 15000, 29: 20000, 30: 30000, 31: 40000, 32: 60000, 33: 80000, 34: 120000 },
+    26: { 18: 0, 19: 0, 20: 650, 21: 975, 22: 1300, 23: 1950, 24: 2600, 25: 3900, 26: 5200, 27: 7800, 28: 10400, 29: 15600, 30: 20800, 31: 31200, 32: 41600, 33: 62400, 34: 83200, 35: 124800 },
+    27: { 19: 0, 20: 0, 21: 675, 22: 1013, 23: 1350, 24: 2025, 25: 2700, 26: 4050, 27: 5400, 28: 8100, 29: 10800, 30: 16200, 31: 21600, 32: 32400, 33: 43200, 34: 64800, 35: 86400, 36: 129600 },
+    28: { 20: 0, 21: 0, 22: 700, 23: 1050, 24: 1400, 25: 2100, 26: 2800, 27: 4200, 28: 5600, 29: 8400, 30: 11200, 31: 16800, 32: 22400, 33: 33600, 34: 44800, 35: 67200, 36: 89600, 37: 134400 },
+    29: { 21: 0, 22: 0, 23: 725, 24: 1088, 25: 1450, 26: 2175, 27: 2900, 28: 4350, 29: 5800, 30: 8700, 31: 11600, 32: 17400, 33: 23200, 34: 34800, 35: 46400, 36: 69600, 37: 92800, 38: 139200 },
+    30: { 22: 0, 23: 0, 24: 750, 25: 1125, 26: 1500, 27: 2250, 28: 3000, 29: 4500, 30: 6000, 31: 9000, 32: 12000, 33: 18000, 34: 24000, 35: 36000, 36: 48000, 37: 72000, 38: 96000, 39: 144000 },
+    31: { 23: 0, 24: 0, 25: 775, 26: 1163, 27: 1550, 28: 2325, 29: 3100, 30: 4650, 31: 6200, 32: 9300, 33: 12400, 34: 18600, 35: 24800, 36: 37200, 37: 49600, 38: 74400, 39: 99200, 40: 148800 },
+    32: { 24: 0, 25: 0, 26: 800, 27: 1200, 28: 1600, 29: 2400, 30: 3200, 31: 4800, 32: 6400, 33: 9600, 34: 12800, 35: 19200, 36: 25600, 37: 38400, 38: 51200, 39: 76800, 40: 102400 },
+    33: { 25: 0, 26: 0, 27: 825, 28: 1238, 29: 1650, 30: 2475, 31: 3300, 32: 4950, 33: 6600, 34: 9900, 35: 13200, 36: 19800, 37: 26400, 38: 39600, 39: 52800, 40: 79200 },
+    34: { 26: 0, 27: 0, 28: 850, 29: 1275, 30: 1700, 31: 2550, 32: 3400, 33: 5100, 34: 6800, 35: 10200, 36: 13600, 37: 20400, 38: 27200, 39: 40800, 40: 54400 },
+    35: { 27: 0, 28: 0, 29: 875, 30: 1313, 31: 1750, 32: 2625, 33: 3500, 34: 5250, 35: 7000, 36: 10500, 37: 14000, 38: 21000, 39: 28000, 40: 42000 },
+    36: { 28: 0, 29: 0, 30: 900, 31: 1350, 32: 1800, 33: 2700, 34: 3600, 35: 5400, 36: 7200, 37: 10800, 38: 14400, 39: 21600, 40: 28800 },
+    37: { 29: 0, 30: 0, 31: 925, 32: 1388, 33: 1850, 34: 2775, 35: 3700, 36: 5550, 37: 7400, 38: 11100, 39: 14800, 40: 22200 },
+    38: { 30: 0, 31: 0, 32: 950, 33: 1425, 34: 1900, 35: 2850, 36: 3800, 37: 5700, 38: 7600, 39: 11400, 40: 15200 },
+    39: { 31: 0, 32: 0, 33: 975, 34: 1463, 35: 1950, 36: 2925, 37: 3900, 38: 5850, 39: 7800, 40: 11700 },
+    40: { 32: 0, 33: 0, 34: 1000, 35: 1500, 36: 2000, 37: 3000, 38: 4000, 39: 6000, 40: 8000 }
+  };
+
+  const level = Math.max(1, Math.min(40, Math.floor(pcLevel)));
+  const cr = Math.max(0.125, monsterCR);
   
-  // Invalid inputs
-  if (x <= 0 || y <= 0) return 0;
-  
-  let iReturn = 0;
-  
-  // Clamp low-level PCs to level 3 for calculation purposes
-  if (x < 3) x = 3;
-  
-  // Special case for very low level encounters (including fractional CRs)
-  // For fractional CRs (0.125, 0.25, 0.33, 0.5), use proportional XP
-  if ((x <= 6) && (y <= 1)) {
-    iReturn = 300 * y;
-  } else if (y < 1) {
-    // Fractional EL for higher-level PCs: scale from base 300
-    iReturn = 300 * y;
-  } else {
-    // General formula for 3.5 (attempts to follow DMG pattern)
-    // This is a best-fit formula that gets corrected by special cases below
-    const mEven = (val: number): number => {
-      let result = 2 * Math.floor(val / 2);
-      if (val < result) result += -2;
-      else if (val > result) result += 2;
-      return result;
-    };
-    
-    iReturn = 6.25 * x * Math.pow(2, mEven(7 - (x - y)) / 2) * (11 - (x - y) - mEven(7 - (x - y)));
+  // Handle fractional CRs (below CR 1)
+  if (cr < 1) {
+    // Fractional CRs scale proportionally from the CR 1 value
+    const cr1XP = TABLE_2_6[level]?.[1] ?? 0;
+    return Math.round(cr1XP * cr);
   }
   
-  // Special corrections for even ELs (4, 6, 8, 10, 12, 14, 16, 18, 20)
-  // These override the general formula for specific PC level ranges
-  if ([4, 6, 8, 10, 12, 14, 16, 18, 20].includes(y)) {
-    if (x <= 3) {
-      iReturn = 1350 * Math.pow(2, (y - 4) / 2);
-    } else if (x === 5 && y >= 6) {
-      iReturn = 2250 * Math.pow(2, (y - 6) / 2);
-    } else if (x === 7 && y >= 8) {
-      iReturn = 3150 * Math.pow(2, (y - 8) / 2);
-    } else if (x === 9 && y >= 10) {
-      iReturn = 4050 * Math.pow(2, (y - 10) / 2);
-    } else if (x === 11 && y >= 12) {
-      iReturn = 4950 * Math.pow(2, (y - 12) / 2);
-    } else if (x === 13 && y >= 14) {
-      iReturn = 5850 * Math.pow(2, (y - 14) / 2);
-    } else if (x === 15 && y >= 16) {
-      iReturn = 6750 * Math.pow(2, (y - 16) / 2);
-    } else if (x === 17 && y >= 18) {
-      iReturn = 7650 * Math.pow(2, (y - 18) / 2);
-    } else if (x === 19 && y >= 20) {
-      iReturn = 8550 * Math.pow(2, (y - 20) / 2);
-    }
+  const crInt = Math.floor(cr);
+  const row = TABLE_2_6[level];
+  
+  if (!row) return 0;
+  
+  // Direct table lookup
+  if (row[crInt] !== undefined) {
+    return row[crInt];
   }
   
-  // Special corrections for odd ELs (7, 9, 11, 13, 15, 17, 19)
-  // These also override the general formula for specific PC level ranges
-  if ([7, 9, 11, 13, 15, 17, 19].includes(y)) {
-    if (x === 6) {
-      iReturn = 2700 * Math.pow(2, (y - 7) / 2);
-    }
-    if (x === 8 && y >= 9) {
-      iReturn = 3600 * Math.pow(2, (y - 9) / 2);
-    }
-    if (x === 10 && y >= 11) {
-      iReturn = 4500 * Math.pow(2, (y - 11) / 2);
-    }
-    if (x === 12 && y >= 13) {
-      iReturn = 5400 * Math.pow(2, (y - 13) / 2);
-    }
-    if (x === 14 && y >= 15) {
-      iReturn = 6300 * Math.pow(2, (y - 15) / 2);
-    }
-    if (x === 16 && y >= 17) {
-      iReturn = 7200 * Math.pow(2, (y - 17) / 2);
-    }
-    if (x === 18 && y >= 19) {
-      iReturn = 8100 * Math.pow(2, (y - 19) / 2);
-    }
+  // For CRs above the table, use DMG rule: double XP for every +2 CR
+  // Find the highest CR in this level's row
+  const maxCRInRow = Math.max(...Object.keys(row).map(k => parseInt(k)).filter(k => row[k] > 0));
+  if (crInt > maxCRInRow) {
+    // Calculate how many doubling steps above the max CR
+    const stepsAbove = Math.floor((crInt - maxCRInRow) / 2);
+    const baseXP = row[maxCRInRow] ?? 0;
+    return Math.round(baseXP * Math.pow(2, stepsAbove));
   }
   
-  // Recursively handle very high ELs (above 20)
-  if (y > 20) {
-    iReturn = 2 * awardRaw35(x, y - 2);
+  return 0;
+}
+
+/**
+ * Get XP for a monster with a fractional CR adjustment applied.
+ * For whole number adjustments, just adds to CR.
+ * For fractional adjustments (e.g., +1.5), interpolates between whole CR values.
+ * 
+ * @param pcLevel - PC level
+ * @param baseCR - Monster's base CR
+ * @param crAdjustment - CR adjustment (can be fractional, e.g., 1.5, -0.3)
+ * @param partySize - Number of PCs for division
+ * @returns XP award for one PC
+ */
+export function getAdjustedMonsterXP(pcLevel: number, baseCR: number, crAdjustment: number, partySize: number): number {
+  if (partySize <= 0) return 0;
+  
+  // Apply the adjustment
+  const adjustedCR = Math.max(0.125, baseCR + crAdjustment);
+  
+  // If the adjustment is a whole number (or very close), just use direct lookup
+  const fractionalPart = adjustedCR - Math.floor(adjustedCR);
+  if (fractionalPart < 0.001) {
+    return Math.round(getBaseXPForSingleMonster(pcLevel, adjustedCR) / partySize);
   }
   
-  // Final bounds checks: no XP for encounters too far from party level
-  // More than 7 levels below: too trivial
-  if (x - y > 7) iReturn = 0;
-  // More than 7 levels above: too dangerous (party likely TPK'd)
-  else if (y - x > 7) iReturn = 0;
+  // For fractional CRs, interpolate between floor and ceiling
+  const floorCR = Math.floor(adjustedCR);
+  const ceilCR = Math.ceil(adjustedCR);
   
-  return Math.round(iReturn);
+  const floorXP = getBaseXPForSingleMonster(pcLevel, floorCR);
+  const ceilXP = getBaseXPForSingleMonster(pcLevel, ceilCR);
+  
+  // Linear interpolation
+  const interpolatedXP = floorXP + (ceilXP - floorXP) * fractionalPart;
+  
+  return Math.round(interpolatedXP / partySize);
 }
 
 /** 
- * D&D 3.0 XP Table: Returns the total party XP pot for a given APL and CR
+ * D&D 3.0 XP Table: Returns the total party XP pot for a given APL and CR.
+ * Supports decimal CR adjustments via linear interpolation.
  */
 export function getPot30(apl: number, cr: number): number {
   const TABLE_30: Record<number, Record<number, number>> = {
@@ -173,36 +180,54 @@ export function getPot30(apl: number, cr: number): number {
     40: { 30:768000, 31:921600, 32:1228800, 33:1843200, 34:2457600, 35:3276800, 36:4915200, 37:7372800, 38:9830400, 39:14745600, 40:19660800 }
   };
 
+  // Helper function to get XP for integer CR
+  const getIntegerPot = (aplInt: number, crInt: number): number => {
+    const levelRow = TABLE_30[aplInt];
+    if (!levelRow) return 0;
+    
+    const xp = levelRow[crInt];
+    if (xp !== undefined) return xp;
+    
+    // If CR not in table, use the baseline for that APL and apply the standard scaling
+    const baseXP = getBasePot30(aplInt);
+    const diff = crInt - aplInt;
+    
+    // Apply the alternating ×3/2, ×4/3 pattern for higher CRs
+    // Or ×2/3, ×3/4 pattern for lower CRs
+    let result = baseXP;
+    if (diff > 0) {
+      // Higher CR: alternating ×3/2 and ×4/3
+      for (let step = 0; step < diff; step++) {
+        result = Math.floor(result * (step % 2 === 0 ? 3/2 : 4/3));
+      }
+    } else if (diff < 0) {
+      // Lower CR: alternating ×2/3 and ×3/4
+      for (let step = 0; step < Math.abs(diff); step++) {
+        result = Math.floor(result * (step % 2 === 0 ? 2/3 : 3/4));
+      }
+    }
+    
+    return Math.max(0, result);
+  };
+
   const aplInt = Math.max(1, Math.min(40, Math.floor(apl)));
-  const crInt = Math.max(1, Math.floor(cr));
+  const crFloor = Math.max(1, Math.floor(cr));
   
-  // Look up the value in the table
-  const levelRow = TABLE_30[aplInt];
-  if (!levelRow) return 0;
-  
-  const xp = levelRow[crInt];
-  if (xp !== undefined) return xp;
-  
-  // If CR not in table, use the baseline for that APL and apply the standard scaling
-  const baseXP = getBasePot30(aplInt);
-  const diff = crInt - aplInt;
-  
-  // Apply the alternating ×3/2, ×4/3 pattern for higher CRs
-  // Or ×2/3, ×3/4 pattern for lower CRs
-  let result = baseXP;
-  if (diff > 0) {
-    // Higher CR: alternating ×3/2 and ×4/3
-    for (let step = 0; step < diff; step++) {
-      result = Math.floor(result * (step % 2 === 0 ? 3/2 : 4/3));
-    }
-  } else if (diff < 0) {
-    // Lower CR: alternating ×2/3 and ×3/4
-    for (let step = 0; step < Math.abs(diff); step++) {
-      result = Math.floor(result * (step % 2 === 0 ? 2/3 : 3/4));
-    }
+  // If CR is an integer, return directly
+  if (cr === crFloor) {
+    return getIntegerPot(aplInt, crFloor);
   }
   
-  return Math.max(0, result);
+  // Decimal CR: interpolate between floor and ceiling
+  const crCeil = crFloor + 1;
+  const floorXP = getIntegerPot(aplInt, crFloor);
+  const ceilXP = getIntegerPot(aplInt, crCeil);
+  
+  // Linear interpolation
+  const fractionalPart = cr - crFloor;
+  const interpolatedXP = floorXP + (ceilXP - floorXP) * fractionalPart;
+  
+  return Math.round(interpolatedXP);
 }
 
 /** Helper: Get the baseline XP for a party level when CR = APL */

@@ -8,19 +8,19 @@ declare global {
     MOTWM_XP?: {
       calc?: XpCalculatorApp;
       bars?: Map<string, XpBarApp>;
+      XpBarApp?: typeof XpBarApp;
     };
   }
 }
 
 Hooks.once("init", () => {
-  console.log("motwm-xp | init");
   registerSettings();
   window.MOTWM_XP = window.MOTWM_XP ?? { bars: new Map() };
+  // Store XpBarApp class for the onChange callback
+  window.MOTWM_XP.XpBarApp = XpBarApp;
 });
 
 Hooks.once("ready", () => {
-  console.log("motwm-xp | ready");
-
   // Player XP bar: each user sees their own assigned character (if any)
   const show = game.settings.get("motwm-xp", "showPlayerBar") as boolean;
   const myActor = game.user?.character as Actor | undefined;

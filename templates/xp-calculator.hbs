@@ -5,46 +5,46 @@
   <!-- Two-column button grid -->
   <div class="buttons two-col">
     <!-- Party / setup (left column group) -->
-    <button data-action="add-online-assigned" class="btn">
+    <button data-action="add-online-assigned" class="btn" title="Add all PCs with online players who have assigned characters">
       <i class="fas fa-signal"></i> Add Online Assigned PCs
     </button>
 
     <!-- Enemies (right column group) -->
-    <button data-action="add-selected-enemies" class="btn">
+    <button data-action="add-selected-enemies" class="btn" title="Add currently selected tokens to enemy list">
       <i class="fas fa-skull-crossbones"></i> Add Selected as Enemies
     </button>
 
-    <button data-action="add-all-assigned" class="btn">
+    <button data-action="add-all-assigned" class="btn" title="Add all PCs with assigned characters (online or offline)">
       <i class="fas fa-users"></i> Add All Assigned PCs
     </button>
 
-    <button data-action="add-hostile-scene" class="btn">
+    <button data-action="add-hostile-scene" class="btn" title="Add all tokens with hostile disposition from current scene">
       <i class="fas fa-fire"></i> Add All Hostile Tokens
     </button>
 
-    <button data-action="add-friendly-scene" class="btn">
+    <button data-action="add-friendly-scene" class="btn" title="Add all tokens with friendly disposition from current scene (for NPC allies)">
       <i class="fas fa-handshake"></i> Add Friendly Tokens
     </button>
 
-    <button data-action="add-neutral-scene" class="btn">
+    <button data-action="add-neutral-scene" class="btn" title="Add all tokens with neutral disposition from current scene">
       <i class="fas fa-eye"></i> Add Neutral Tokens
     </button>
 
-    <button data-action="clear-party" class="btn subtle">
+    <button data-action="clear-party" class="btn subtle" title="Remove all party members from the calculator">
       <i class="fas fa-eraser"></i> Clear Party
     </button>
 
-    <button data-action="clear-enemies" class="btn subtle">
+    <button data-action="clear-enemies" class="btn subtle" title="Remove all enemies from the calculator">
       <i class="fas fa-trash"></i> Clear Enemies
     </button>
 
     <!-- Full-width apply & rollback -->
-    <button data-action="apply-xp" class="apply">
+    <button data-action="apply-xp" class="apply" title="Award XP to checked party members and clear the encounter">
       <i class="fas fa-gift"></i> Apply XP
     </button>
 
     {{#if hasRollback}}
-    <button data-action="rollback-xp" class="btn">
+    <button data-action="rollback-xp" class="btn" title="Undo the last XP award and restore the previous encounter">
       <i class="fas fa-undo"></i> Rollback Last Award
     </button>
     {{else}}
@@ -71,23 +71,23 @@
   </div>
 
   <label class="checkbox">
-    <input type="checkbox" data-action="toggle-earns" data-id="{{id}}" {{#if earns}}checked{{/if}} />
+    <input type="checkbox" data-action="toggle-earns" data-id="{{id}}" {{#if earns}}checked{{/if}} title="Check to include this character in encounter XP awards" />
     earns XP
   </label>
 
-  <!-- ⤵ NEW: Manual award controls -->
-  <div class="manual-award">
+  <!-- Manual award controls -->
+  <div class="manual-award" title="Award additional XP for roleplay, story awards, etc. Separate from encounter XP.">
     <input type="number" min="0" step="1" placeholder="0"
-           data-action="award-amount" value="{{manual.amount}}" style="width:72px;">
-    <select data-action="award-unit" style="width:94px;">
+           data-action="award-amount" value="{{manual.amount}}" style="width:72px;" title="Amount of XP or number of segments">
+    <select data-action="award-unit" style="width:94px;" title="Points = raw XP, Segments = 13.33 segments per level">
       <option value="points"  {{#if (eq manual.unit "points")}}selected{{/if}}>Points</option>
       <option value="bubbles" {{#if (eq manual.unit "bubbles")}}selected{{/if}}>Segments</option>
     </select>
     <input type="text" data-action="award-reason" placeholder="Reason (chat)"
-           value="{{manual.reason}}" style="width:180px;">
+           value="{{manual.reason}}" style="width:180px;" title="Optional reason to display in chat message">
   </div>
 
-  <button class="icon" data-action="remove-party" data-id="{{id}}" title="Remove">
+  <button class="icon" data-action="remove-party" data-id="{{id}}" title="Remove from calculator">
     <i class="fas fa-times"></i>
   </button>
 </div>
@@ -109,7 +109,7 @@
               <div class="grow">
                 <b>{{name}}</b> — CR {{cr}}
               </div>
-              <button class="icon" data-action="remove-enemy" data-id="{{mapKey}}" title="Remove"><i class="fas fa-times"></i></button>
+              <button class="icon" data-action="remove-enemy" data-id="{{mapKey}}" title="Remove from calculator"><i class="fas fa-times"></i></button>
             </div>
           {{/each}}
         {{else}}
@@ -124,23 +124,24 @@
             EL Modifier:
             <input
               type="number"
-              step="1"
-              inputmode="numeric"
+              step="0.1"
+              inputmode="decimal"
               data-action="el-delta"
               value="{{elDelta}}"
               placeholder="0"
               style="width:80px;"
+              title="Adjust encounter difficulty. Positive = harder (more XP), negative = easier (less XP). Supports decimals for fine-tuning."
             >
           </label>
 
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
-          <div class="muted" style="flex:1;" title="Party Level uses power-based calculation (÷4 baseline) for difficulty only. XP awards use average PC level, unaffected by party size. Use the EL modifier below to adjust encounter XP rewards.">
+          <div class="muted" style="flex:1;" title="Party Level: Power-based calculation (÷4 baseline) used only for difficulty rating.&#10;&#10;XP Awards: Based on each PC's individual level vs each monster's CR (official 3.5e method).&#10;&#10;EL Modifier: Adjusts effective monster CRs for XP calculation (e.g., +2 treats CR 5 as CR 7).">
             {{encounterInfo}}
             <i class="fas fa-info-circle" style="font-size:10px; opacity:0.6; margin-left:4px;"></i>
           </div>
           {{#if elBreakdown}}
-          <button class="icon" data-action="toggle-el-details" title="Show/hide EL calculation details" style="width:20px; height:20px; font-size:10px;">
+          <button class="icon" data-action="toggle-el-details" title="Show/hide detailed step-by-step EL calculation breakdown" style="width:20px; height:20px; font-size:10px;">
             {{#if showElDetails}}▲{{else}}▼{{/if}}
           </button>
           {{/if}}
@@ -159,7 +160,12 @@
   <div class="preview">
     {{#if preview.length}}
       <table class="table">
-        <thead><tr><th>Actor</th><th>Level</th><th title="Encounter Level">EL</th><th>XP (this award)</th></tr></thead>
+        <thead><tr>
+          <th>Actor</th>
+          <th title="Character level">Level</th>
+          <th title="Final Encounter Level (including modifier)">EL</th>
+          <th title="XP to be awarded (encounter + manual)">XP (this award)</th>
+        </tr></thead>
         <tbody>
         {{#each preview}}
           <tr>
