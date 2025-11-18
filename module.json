@@ -34,7 +34,7 @@
   "packs": [],
   "url": "https://github.com/Xombit/motwm-xp",
   "manifest": "https://raw.githubusercontent.com/Xombit/motwm-xp/main/module.json",
-  "download": "https://github.com/Xombit/motwm-xp/releases/download/1.0.0/motwm-xp-1.0.0.zip",
+  "download": "https://github.com/Xombit/motwm-xp/releases/download/1.0.2/motwm-xp-1.0.2.zip",
   "readme": "README.md",
   "license": "LICENSE",
   "bugs": "https://github.com/Xombit/motwm-xp/issues",
@@ -49,4 +49,6 @@
       "url": "https://raw.githubusercontent.com/Xombit/motwm-xp/main/images/xpbar.webp"
     }
   ]
+
 }
+
