@@ -1,4 +1,5 @@
 import { systemTotalXPForLevel, TOTAL_BUBBLE_SEGMENTS } from "../calc/xp";
+import { getApplicationElement, getFoundryProperty } from "../foundry-compat";
 
 type Pos = { left: number; top: number };
 
@@ -7,6 +8,9 @@ export class XpBarApp extends Application {
   private _dragging = false;
   private _dragOffset = { x: 0, y: 0 };
   private _wired = false; // prevent duplicate listeners
+  private _onPointerMove?: (event: PointerEvent) => void;
+  private _onPointerUp?: () => void;
+  private _onResize?: () => void;
 
   constructor(actor: Actor, options: Partial<ApplicationOptions> = {}) {
     super({ popOut: false, id: "motwmxp-bar", ...options });
@@ -14,7 +18,7 @@ export class XpBarApp extends Application {
   }
 
   static get defaultOptions() {
-    return mergeObject(super.defaultOptions, {
+    return foundry.utils.mergeObject(super.defaultOptions, {
       id: "motwmxp-bar",
       template: "modules/motwm-xp/templates/xp-bar.hbs"
     });
@@ -36,9 +40,13 @@ export class XpBarApp extends Application {
     await game.settings.set("motwm-xp", "barPos", JSON.stringify({ left, top }));
   }
 
+  private _getElement(): HTMLElement | null {
+    return getApplicationElement(this);
+  }
+
   /** Apply pixel position; if none saved, center by calculating pixels (no CSS transform). */
   private _applyPos() {
-    const el = this.element[0] as HTMLElement;
+    const el = this._getElement();
     if (!el) return;
 
     const saved = this._getSavedPos();
@@ -63,11 +71,11 @@ export class XpBarApp extends Application {
   getData(): any {
     // read from sheet/system
     // @ts-ignore
-    const lvl = Number(getProperty(this.actor, "system.details.level.value") ?? 1);
+    const lvl = Number(getFoundryProperty(this.actor, "system.details.level.value") ?? 1);
     // @ts-ignore
-    const totalXP = Number(getProperty(this.actor, "system.details.xp.value") ?? 0);
+    const totalXP = Number(getFoundryProperty(this.actor, "system.details.xp.value") ?? 0);
     // @ts-ignore
-    const nextFromSheet = getProperty(this.actor, "system.details.xp.max");
+    const nextFromSheet = getFoundryProperty(this.actor, "system.details.xp.max");
 
     const next0 = Number(nextFromSheet != null ? nextFromSheet : systemTotalXPForLevel(lvl + 1));
     const prev0 = systemTotalXPForLevel(lvl);
@@ -103,7 +111,7 @@ export class XpBarApp extends Application {
     this._applyPos();
 
     // Always re-attach pointerdown to the new element after render
-    const el = this.element[0] as HTMLElement;
+    const el = this._getElement();
     if (!el) return;
 
     // DRAG ON WHOLE BAR - must re-attach every render since element is recreated
@@ -130,33 +138,48 @@ export class XpBarApp extends Application {
     if (this._wired) return;
     this._wired = true;
 
-    window.addEventListener("pointermove", (ev: PointerEvent) => {
+    this._onPointerMove = (ev: PointerEvent) => {
       if (!this._dragging) return;
-      const currentEl = this.element[0] as HTMLElement;
+      const currentEl = this._getElement();
       if (!currentEl) return;
       const left = Math.max(0, Math.min(window.innerWidth  - 50, ev.clientX - this._dragOffset.x));
       const top  = Math.max(0, Math.min(window.innerHeight - 24, ev.clientY - this._dragOffset.y));
       currentEl.style.left = `${left}px`;
       currentEl.style.top  = `${top}px`;
-    });
+    };
 
-    window.addEventListener("pointerup", async () => {
+    this._onPointerUp = async () => {
       if (!this._dragging) return;
       this._dragging = false;
-      const currentEl = this.element[0] as HTMLElement;
+      const currentEl = this._getElement();
       if (!currentEl) return;
       const left = parseInt(currentEl.style.left || "0", 10);
       const top  = parseInt(currentEl.style.top  || "0", 10);
       await this._savePos(left, top);
-    });
+    };
 
     // keep it on-screen on resize; if saved, re-apply saved pixels; else re-center by pixels
-    window.addEventListener("resize", () => this._applyPos(), { passive: true });
+    this._onResize = () => this._applyPos();
+
+    window.addEventListener("pointermove", this._onPointerMove);
+    window.addEventListener("pointerup", this._onPointerUp);
+    window.addEventListener("resize", this._onResize, { passive: true });
   }
 
   render(force?: boolean, options?: any): this {
     const show = game.settings.get("motwm-xp", "showPlayerBar") as boolean;
     if (!show) return this;
     return super.render(force, options);
+  }
+
+  async close(options?: any): Promise<any> {
+    if (this._onPointerMove) window.removeEventListener("pointermove", this._onPointerMove);
+    if (this._onPointerUp) window.removeEventListener("pointerup", this._onPointerUp);
+    if (this._onResize) window.removeEventListener("resize", this._onResize);
+    this._wired = false;
+    this._onPointerMove = undefined;
+    this._onPointerUp = undefined;
+    this._onResize = undefined;
+    return super.close(options);
   }
 }

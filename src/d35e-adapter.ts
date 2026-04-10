@@ -1,7 +1,9 @@
+import { getFoundryProperty } from "./foundry-compat";
+
 export class D35EAdapter {
   static getXP(actor: Actor): number {
     // @ts-ignore
-    const v = getProperty(actor, "system.details.xp.value");
+    const v = getFoundryProperty(actor, "system.details.xp.value");
     return Number(v ?? 0);
   }
   static async setXP(actor: Actor, value: number) {
@@ -10,18 +12,18 @@ export class D35EAdapter {
   static getLevel(actor: Actor): number {
     // Prefer summed classes for characters
     // @ts-ignore
-    const classes = getProperty(actor, "system.classes");
+    const classes = getFoundryProperty(actor, "system.classes");
     if (classes && typeof classes === "object") {
       let total = 0;
       for (const cls of Object.values(classes) as any[]) {
-        const lv = Number(getProperty(cls, "level") ?? 0);
+        const lv = Number(getFoundryProperty(cls, "level") ?? 0);
         total += lv;
       }
       if (total > 0) return total;
     }
     // Fallback (NPCs/monsters often have this)
     // @ts-ignore
-    const fallback = getProperty(actor, "system.details.level.value");
+    const fallback = getFoundryProperty(actor, "system.details.level.value");
     return Number(fallback ?? 0);
   }
   static getCR(actor: Actor): number | null {
@@ -42,7 +44,7 @@ export class D35EAdapter {
     
     for (const path of crPaths) {
       // @ts-ignore
-      const cr = getProperty(actor, path);
+      const cr = getFoundryProperty(actor, path);
       if (cr != null && Number.isFinite(Number(cr))) return Number(cr);
     }
     

@@ -1,0 +1,152 @@
+# PowerShell script to deploy module to Foundry for testing
+# Only copies necessary runtime files, not source code
+
+param(
+    # Optional override. If omitted, common Foundry module locations are tried.
+    [string]$FoundryModulesPath
+)
+
+$moduleName = "motwm-xp"
+$projectRoot = Split-Path -Parent $PSScriptRoot
+
+# Prefer an explicit path, then common defaults.
+# You can edit these defaults whenever you switch local Foundry installs.
+$candidatePaths = @(
+    $FoundryModulesPath,
+    "E:\foundry-v14\foundrydata\Data\modules"
+) | Where-Object { $_ -and $_.Trim() -ne "" } | Select-Object -Unique
+
+$existingCandidatePaths = @()
+$foundryModulesPath = $null
+foreach ($p in $candidatePaths) {
+    if (Test-Path $p) {
+        $existingCandidatePaths += $p
+        $foundryModulesPath = $p
+        break
+    }
+}
+
+if (-not $foundryModulesPath) {
+    Write-Host "Error: Foundry modules directory not found." -ForegroundColor Red
+    Write-Host "Tried:" -ForegroundColor Yellow
+    $candidatePaths | ForEach-Object { Write-Host "  - $_" -ForegroundColor Yellow }
+    Write-Host "Provide a path via: .\scripts\deploy.ps1 -FoundryModulesPath <path>" -ForegroundColor Yellow
+    exit 1
+}
+
+$targetPath = Join-Path $foundryModulesPath $moduleName
+
+Write-Host "Deploying $moduleName to Foundry VTT..." -ForegroundColor Cyan
+
+if (-not $FoundryModulesPath -and $existingCandidatePaths.Count -gt 1) {
+    Write-Host "Warning: Multiple Foundry module directories exist. Using the first match." -ForegroundColor Yellow
+    $existingCandidatePaths | ForEach-Object { Write-Host "  - Found: $_" -ForegroundColor Yellow }
+    Write-Host "Tip: pass an explicit path: .\scripts\deploy.ps1 -FoundryModulesPath <path>" -ForegroundColor Yellow
+}
+
+Write-Host "Foundry modules directory: $foundryModulesPath" -ForegroundColor DarkCyan
+Write-Host "Deploy target: $targetPath" -ForegroundColor DarkCyan
+Write-Host "Project root: $projectRoot" -ForegroundColor DarkCyan
+
+# Resolve Node 20 from nvm-windows (required for Foundry v11 compatibility)
+$nvmDir = "$env:LOCALAPPDATA\nvm"
+$node20Dir = Get-ChildItem $nvmDir -Directory -Filter "v20.*" -ErrorAction SilentlyContinue |
+    Sort-Object Name -Descending | Select-Object -First 1
+
+if (-not $node20Dir) {
+    Write-Host "Error: Node 20 not found under $nvmDir" -ForegroundColor Red
+    Write-Host "Install it with: nvm install 20" -ForegroundColor Yellow
+    exit 1
+}
+
+$nodePath = Join-Path $node20Dir.FullName "node.exe"
+$npmPath = Join-Path $node20Dir.FullName "npm.cmd"
+Write-Host "Using Node 20: $nodePath" -ForegroundColor DarkCyan
+
+# Prepend Node 20 to PATH so child processes (vite, etc.) can find node.exe
+$env:PATH = "$($node20Dir.FullName);$env:PATH"
+
+Push-Location $projectRoot
+try {
+    # Build first
+    Write-Host "Building module..." -ForegroundColor Yellow
+    & $npmPath run build
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Build failed! Aborting deployment." -ForegroundColor Red
+        exit 1
+    }
+
+    # Create target directory if it doesn't exist
+    if (-not (Test-Path $targetPath)) {
+        Write-Host "Creating module directory..." -ForegroundColor Yellow
+        New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
+    }
+
+    # Copy only necessary files
+    Write-Host "Copying files..." -ForegroundColor Yellow
+
+    # Core files
+    Copy-Item "module.json" $targetPath -Force
+    Copy-Item "README.md" $targetPath -Force
+    Copy-Item "LICENSE" $targetPath -Force
+    if (Test-Path "CHANGELOG.md") {
+        Copy-Item "CHANGELOG.md" $targetPath -Force
+    }
+
+    # Built files (dist folder)
+    if (Test-Path "dist") {
+        $distTarget = Join-Path $targetPath "dist"
+        if (Test-Path $distTarget) {
+            Remove-Item $distTarget -Recurse -Force
+        }
+        Copy-Item "dist" $distTarget -Recurse -Force
+    }
+
+    # Templates
+    if (Test-Path "templates") {
+        $templatesTarget = Join-Path $targetPath "templates"
+        if (Test-Path $templatesTarget) {
+            Remove-Item $templatesTarget -Recurse -Force
+        }
+        Copy-Item "templates" $templatesTarget -Recurse -Force
+    }
+
+    # Runtime data assets (if used)
+    if (Test-Path "data") {
+        $dataTarget = Join-Path $targetPath "data"
+        if (Test-Path $dataTarget) {
+            Remove-Item $dataTarget -Recurse -Force
+        }
+        Copy-Item "data" $dataTarget -Recurse -Force
+    }
+
+    # Language files (if used)
+    if (Test-Path "lang") {
+        $langTarget = Join-Path $targetPath "lang"
+        if (Test-Path $langTarget) {
+            Remove-Item $langTarget -Recurse -Force
+        }
+        Copy-Item "lang" $langTarget -Recurse -Force
+    }
+
+    # Images
+    if (Test-Path "images") {
+        $imagesTarget = Join-Path $targetPath "images"
+        if (Test-Path $imagesTarget) {
+            Remove-Item $imagesTarget -Recurse -Force
+        }
+        Copy-Item "images" $imagesTarget -Recurse -Force
+    }
+}
+finally {
+    Pop-Location
+}
+
+Write-Host "`nDeployment complete!" -ForegroundColor Green
+Write-Host "Module deployed to: $targetPath" -ForegroundColor Cyan
+Write-Host "`nNext steps:" -ForegroundColor Yellow
+Write-Host "  1. Launch/Restart Foundry VTT" -ForegroundColor White
+Write-Host "  2. Enable '$moduleName' in your world's module settings" -ForegroundColor White
+Write-Host "  3. Open Token controls as GM and click the XP calculator button" -ForegroundColor White
+Write-Host "  4. Verify the player XP bar appears for assigned characters" -ForegroundColor White

@@ -21,24 +21,23 @@ export function registerSettings() {
       // Show/hide the XP bar immediately when the setting changes
       const myActor = game.user?.character;
       if (!myActor) return;
-      
+
       const bars = (window as any).MOTWM_XP?.bars;
       if (!bars) return;
-      
-      let app = bars.get(myActor.id);
-      
+
+      const actorId = typeof myActor === "string" ? myActor : myActor.id;
+      let app = bars.get(actorId);
+
       if (value) {
-        // Show the bar
         if (!app) {
-          // XpBarApp class is stored in window.MOTWM_XP.XpBarApp by main.ts
+          const actor = typeof myActor === "string" ? game.actors?.get(myActor) : myActor;
           const XpBarApp = (window as any).MOTWM_XP?.XpBarApp;
-          if (!XpBarApp) return;
-          app = new XpBarApp(myActor, { top: window.innerHeight - 54, left: 0 });
-          bars.set(myActor.id, app);
+          if (!actor || !XpBarApp) return;
+          app = new XpBarApp(actor, { top: window.innerHeight - 54, left: 0 });
+          bars.set(actor.id, app);
         }
         app.render(true);
       } else {
-        // Hide the bar
         if (app) {
           (app as any).close();
         }
@@ -66,6 +65,12 @@ export function registerSettings() {
       dmg35: "D&D 3.5e (Individual XP)",
       split30: "D&D 3.0 (split pot by APL)"
     },
-    default: "dmg35"
+    default: "dmg35",
+    onChange: () => {
+      const calc = (window as any).MOTWM_XP?.calc;
+      if (calc?.element) {
+        calc.render(false);
+      }
+    }
   });
 }

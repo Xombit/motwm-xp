@@ -99,12 +99,11 @@
 .window-app#motwmxp-calc { width: 980px; min-width: 760px; }
 .window-app#motwmxp-calc .window-content { padding: 10px; }
 
-/* Root */
+/* Root — inherits color/background from .D35E .window-content */
 .motwmxp-calc {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  color: var(--color-text-light-primary, #e6e6e6);
 }
 
 /* Header + buttons */
@@ -112,10 +111,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid var(--color-border-light-2, #2c2f3a);
-  border-radius: 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
   padding: 6px 8px;
-  background: color-mix(in oklab, var(--color-warm-2, #0b0e14), #ffffff 3%);
 }
 .motwmxp-calc > header h2 {
   margin: 0; font-size: 16px; font-weight: 700;
@@ -124,23 +121,18 @@
   display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto;
 }
 
-/* Buttons */
+/* Buttons — inherit D35E button base styles; keep layout-only overrides */
 .motwmxp-calc .btn,
 .motwmxp-calc button.apply {
   padding: 5px 10px;
   border-radius: 6px;
   line-height: 1.2;
-  border: 1px solid var(--color-border-light-2, #2c2f3a);
-  background: var(--color-cool-5, #1a2230);
-  color: var(--color-text-light-highlight, #eef3ff);
   transition: filter .12s ease;
 }
 .motwmxp-calc .btn:hover,
-.motwmxp-calc button.apply:hover { filter: brightness(1.08); }
+.motwmxp-calc button.apply:hover { filter: brightness(0.92); }
 .motwmxp-calc .btn.subtle { opacity: .85; }
-.motwmxp-calc button.apply {
-  background: #1f2d52; border-color: #2a3c72;
-}
+.motwmxp-calc button.apply { font-weight: 700; }
 
 /* Two-column content */
 .motwmxp-calc .grid {
@@ -157,12 +149,12 @@
 /* Lists */
 .motwmxp-calc .list {
   display: flex; flex-direction: column; gap: 6px;
-  border: 1px solid var(--color-border-light-2, #2c2f3a);
+  border: 1px solid rgba(0, 0, 0, 0.2);
   border-radius: 8px;
-  background: color-mix(in oklab, var(--color-warm-2, #0b0e14), #ffffff 2.5%);
   padding: 6px;
   max-height: 240px; overflow: auto;
 }
+
 /* Party/Enemy row as a 2-row grid */
 .motwmxp-calc .row {
   display: grid;
@@ -171,27 +163,19 @@
   row-gap: 4px;
   column-gap: 8px;
   align-items: center;
-
   padding: 4px 6px;
-  border: 1px solid color-mix(in oklab, var(--color-border-light-2, #2c2f3a), #ffffff 8%);
+  border: 1px solid rgba(0, 0, 0, 0.15);
   border-radius: 8px;
-  background: color-mix(in oklab, var(--color-warm-2, #0b0e14), #ffffff 1.5%);
   cursor: pointer;
-  transition: background-color 0.1s ease, border-color 0.1s ease;
+  transition: background-color 0.1s ease;
 }
-
-.motwmxp-calc .row:hover {
-  background: color-mix(in oklab, var(--color-warm-2, #0b0e14), #ffffff 3%);
-  border-color: color-mix(in oklab, var(--color-border-light-2, #2c2f3a), #ffffff 15%);
-}
+.motwmxp-calc .row:hover { background: rgba(0, 0, 0, 0.04); }
 
 .motwmxp-calc .row img { grid-column: 1; grid-row: 1; width: 24px; height: 24px; border-radius: 4px; object-fit: cover; }
 .motwmxp-calc .row .grow { grid-column: 2; grid-row: 1; line-height: 1.25; }
 .motwmxp-calc .row .checkbox { grid-column: 3; grid-row: 1; white-space: nowrap; font-size: 12px; }
-.motwmxp-calc .row .icon { grid-column: 4; grid-row: 1; width: 28px; height: 24px; display: grid; place-items: center; border-radius: 6px; border: 1px solid var(--color-border-light-2, #2c2f3a); background: var(--color-cool-5, #1a2230); color: #fff; }
+.motwmxp-calc .row .icon { grid-column: 4; grid-row: 1; width: 28px; height: 24px; display: grid; place-items: center; border-radius: 6px; border: 1px solid rgba(0, 0, 0, 0.2); }
 .motwmxp-calc .row .icon:hover { filter: brightness(1.08); }
-
-
 
 /* Tiny elements */
 .motwmxp-calc .checkbox { white-space: nowrap; font-size: 12px; }
@@ -199,18 +183,15 @@
   display: inline-flex; gap: 6px; align-items: center;
   padding: 2px 8px; margin-left: 6px;
   font-size: 11px; border-radius: 999px;
-  background: color-mix(in oklab, var(--color-warm-2, #0b0e14), #ffffff 9%);
+  border: 1px solid rgba(0, 0, 0, 0.2);
 }
-.motwmxp-calc .empty {
-  padding: 8px; font-size: 12px; opacity: .75;
-}
+.motwmxp-calc .empty { padding: 8px; font-size: 12px; opacity: .75; }
 
 /* EL box (right column) */
 .motwmxp-calc .el-box {
   margin-top: 10px;
-  border: 1px solid var(--color-border-light-2, #2c2f3a);
+  border: 1px solid rgba(0, 0, 0, 0.2);
   border-radius: 8px;
-  background: color-mix(in oklab, var(--color-warm-2, #0b0e14), #ffffff 3%);
   padding: 8px;
 }
 .motwmxp-calc .muted { opacity: .75; }
@@ -218,56 +199,34 @@
 /* Preview */
 .motwmxp-calc > h3 { margin: 6px 0 4px 0; font-size: 14px; }
 .motwmxp-calc .preview {
-  border: 1px solid var(--color-border-light-2, #2c2f3a);
+  border: 1px solid rgba(0, 0, 0, 0.2);
   border-radius: 8px;
-  background: color-mix(in oklab, var(--color-warm-2, #0b0e14), #ffffff 2%);
   padding: 8px;
   max-height: 36vh; overflow: auto;
 }
 
 /* Table */
 .motwmxp-calc .table { width: 100%; border-collapse: collapse; }
-.motwmxp-calc .table thead th {
-  text-align: left; font-weight: 700;
-  background: color-mix(in oklab, var(--color-warm-2, #0b0e14), #ffffff 4%);
-}
+.motwmxp-calc .table thead th { text-align: left; font-weight: 700; }
 .motwmxp-calc .table th, .motwmxp-calc .table td {
   padding: 6px 8px;
-  border-bottom: 1px solid color-mix(in oklab, var(--color-border-light-2, #2c2f3a), #ffffff 6%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.15);
 }
 .motwmxp-calc .table tr:last-child td { border-bottom: 0; }
 .motwmxp-calc .table td[title] { opacity: .9; }
 
-/* Make the manual-award controls span the middle columns on a second line */
+/* Manual-award controls span the middle columns on a second line */
 .motwmxp-calc .row .manual-award {
   grid-column: 2 / span 2;   /* spans "grow" + "checkbox" columns */
-  grid-row: 2;               /* second row */
+  grid-row: 2;
   display: flex; gap: 6px; align-items: center;
 }
 
-/* Tidy inputs */
+/* Tidy inputs — sizing only; color/border inherited from .D35E input rules */
 .motwmxp-calc .row .manual-award input[type="number"] { width: 80px; }
 .motwmxp-calc .row .manual-award select { width: 100px; }
 .motwmxp-calc .row .manual-award input[type="text"] { width: 220px; }
-
 .motwmxp-calc .row .tiny { font-size: 11px; }
-.motwmxp-calc .muted { opacity: .75; }
-
-/* ===== Contrast fixes for calculator ===== */
-
-/* Inputs/selects: brighter text, clearer bg/border */
-.motwmxp-calc input[type="number"],
-.motwmxp-calc input[type="text"],
-.motwmxp-calc select {
-  color: var(--color-text-light-primary, #f2f5ff);             /* brighter text */
-  background: var(--color-cool-5, #1a2230);                    /* dark but readable */
-  border: 1px solid color-mix(in oklab, var(--color-border-light-2, #2c2f3a), #ffffff 15%);
-}
-
-.motwmxp-calc input::placeholder {
-  color: color-mix(in oklab, var(--color-text-light-primary, #f2f5ff), #000 40%);  /* visible placeholder */
-  opacity: 0.9;
-}
 
 /* Select dropdown text (helps some themes/browsers) */
 .motwmxp-calc select option {
@@ -278,17 +237,17 @@
 /* Section titles (Party / Enemies / Live Preview) a bit brighter */
 .motwmxp-calc .col > h3,
 .motwmxp-calc > h3 {
-  color: var(--color-warm-3, #4a2c1a);
-  text-shadow: 0 1px 1px rgba(0,0,0,.25);
+  color: inherit;
+  text-shadow: none;
 }
 
 /* Row manual-award inputs (same contrast) */
 .motwmxp-calc .row .manual-award input[type="number"],
 .motwmxp-calc .row .manual-award input[type="text"],
 .motwmxp-calc .row .manual-award select {
-  color: var(--color-text-light-primary, #f2f5ff);
-  background: var(--color-cool-5, #1a2230);
-  border: 1px solid color-mix(in oklab, var(--color-border-light-2, #2c2f3a), #ffffff 15%);
+  color: inherit;
+  background: var(--color-bg-option, transparent);
+  border: 1px solid var(--color-border-light-primary, var(--color-border-light-2, #999));
 }
 
 /* Header button grid: two columns */
@@ -301,21 +260,21 @@
 
 /* EL Details Toggle Button */
 .motwmxp-calc .el-box button[data-action="toggle-el-details"] {
-  background: var(--color-cool-5, #1a2230);
-  border: 1px solid var(--color-border-light-2, #2c2f3a);
+  background: transparent;
+  border: 1px solid var(--color-border-light-primary, var(--color-border-light-2, #999));
   border-radius: 4px;
-  color: #fff;
+  color: inherit;
   cursor: pointer;
   transition: background-color 0.1s ease;
 }
 
 .motwmxp-calc .el-box button[data-action="toggle-el-details"]:hover {
-  background: color-mix(in oklab, var(--color-cool-5, #1a2230), #ffffff 10%);
+  filter: brightness(1.08);
 }
 
 /* EL Details Panel */
 .motwmxp-calc .el-details {
-  border: 1px solid color-mix(in oklab, var(--color-border-light-2, #2c2f3a), #ffffff 5%);
+  border: 1px solid var(--color-border-light-primary, var(--color-border-light-2, #999));
 }
 
 /* Make buttons fill their grid cell nicely */
@@ -324,4 +283,67 @@
   width: 100%;
   justify-content: center;
   text-align: center;
+}
+
+/* ── Dark mode: override D35E parchment when Foundry dark theme is active ──
+   Foundry v13 sets .themed.theme-dark on the window element (which also has .D35E).
+   On v11/v12 this block is inert — no .themed class is ever added. */
+
+#motwmxp-calc.themed.theme-dark .window-content {
+  background: #1a1817;
+  color: #e8e4d4;
+}
+
+/* Inputs and selects in dark mode */
+#motwmxp-calc.themed.theme-dark .window-content input[type="text"],
+#motwmxp-calc.themed.theme-dark .window-content input[type="number"],
+#motwmxp-calc.themed.theme-dark .window-content select {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #e8e4d4;
+}
+#motwmxp-calc.themed.theme-dark .window-content input::placeholder {
+  color: rgba(232, 228, 212, 0.45);
+}
+
+/* Panel backgrounds */
+#motwmxp-calc.themed.theme-dark .motwmxp-calc .list,
+#motwmxp-calc.themed.theme-dark .motwmxp-calc .el-box,
+#motwmxp-calc.themed.theme-dark .motwmxp-calc .preview,
+#motwmxp-calc.themed.theme-dark .motwmxp-calc .el-details {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Borders */
+#motwmxp-calc.themed.theme-dark .motwmxp-calc > header,
+#motwmxp-calc.themed.theme-dark .motwmxp-calc .list,
+#motwmxp-calc.themed.theme-dark .motwmxp-calc .el-box,
+#motwmxp-calc.themed.theme-dark .motwmxp-calc .preview,
+#motwmxp-calc.themed.theme-dark .motwmxp-calc .tag,
+#motwmxp-calc.themed.theme-dark .motwmxp-calc .row .icon,
+#motwmxp-calc.themed.theme-dark .motwmxp-calc .el-details,
+#motwmxp-calc.themed.theme-dark .motwmxp-calc .el-box button[data-action="toggle-el-details"] {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+#motwmxp-calc.themed.theme-dark .motwmxp-calc .row,
+#motwmxp-calc.themed.theme-dark .motwmxp-calc .table th,
+#motwmxp-calc.themed.theme-dark .motwmxp-calc .table td {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Row hover */
+#motwmxp-calc.themed.theme-dark .motwmxp-calc .row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Icon / toggle button hover */
+/* Preserve D35E skinned button backgrounds in dark mode; only adjust icon/text contrast */
+#motwmxp-calc.themed.theme-dark .motwmxp-calc .row .icon,
+#motwmxp-calc.themed.theme-dark .motwmxp-calc .el-box button[data-action="toggle-el-details"] {
+  color: #f1ede3;
+}
+
+/* Table header row */
+#motwmxp-calc.themed.theme-dark .motwmxp-calc .table thead th {
+  background: rgba(255, 255, 255, 0.05);
 }

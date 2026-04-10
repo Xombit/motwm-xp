@@ -1,7 +1,7 @@
 # Melody of the Weirding Mover — XP & Encounter Manager
 
-**Version:** v1.0.2  
-**For:** Foundry VTT v11 • D&D 3.5e (D35E ≥ 2.4.3)
+**Version:** v1.0.3  
+**For:** Foundry VTT v9–v14 • D&D 3.5e (D35E)
 
 A fast, GM-friendly encounter calculator and XP manager with a modern UI and a slick MMO-style player XP bar. Built for 3.5e RAW, with sensible features for real tables.
 
@@ -49,7 +49,7 @@ This module gives GMs a live **Encounter Level (EL)** calculator, multiple **XP 
 
 1. Place the module in `Data/modules/` on your Foundry host.
 2. Enable it in **World Settings → Manage Modules**.
-3. Requirements: **Foundry v11** and **D35E ≥ 2.4.3**. (Other versions may work but aren’t yet tested.)
+3. Requirements: **Foundry v9–v14** and **D35E ≥ 2.4.3**. (Foundry v12-v13 aren't confirmed working yet)
 
 ---
 
@@ -57,7 +57,7 @@ This module gives GMs a live **Encounter Level (EL)** calculator, multiple **XP 
 
 ### GM
 1. Click the **calculator icon** on the Token Controls toolbar.
-2. Add party (e.g., **Add Online Assigned PCs**) and add enemies (e.g., **Add Selected as Enemies**).
+2. Add party (e.g., **Add Selected to Party**) and add enemies (e.g., **Add Selected as Enemies**).
 3. Review the **Live XP preview** and **difficulty**.
 4. Click **Apply XP** to award. If needed, use **Rollback** to remove the awards and chat messages (if used).
 
@@ -120,13 +120,11 @@ The calculator follows the **Dungeon Master's Guide** logic for turning creature
 
 ---
 
-## Changelog (v1.0.2)
+## Changelog (v1.0.3)
 
-
-- **3.5 XP Split** Corrected logic for 3.5 XP award party split.
-- **XP bar** now shows/hides instantly when toggled (no reload required).
-- **Decimal CR interpolation** for both award methods with epic level support (1-40).
-- **Cleaner console** with debug logging removed (errors still logged).
+- **Foundry v14 support**:
+- **D35E theme integration**: Calculator window now inherits D35E parchment styling (buttons, typography, form controls) in light mode, and switches cleanly to a dark overlay when Foundry's application color scheme is set to dark. D35E button textures remain intact in both modes.
+- **"Add Selected to Party" button** replaces the broken "Add Online Assigned" button.
 
 See [CHANGELOG.md](CHANGELOG.md) for full version history.
 

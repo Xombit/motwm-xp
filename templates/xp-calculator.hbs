@@ -5,8 +5,8 @@
   <!-- Two-column button grid -->
   <div class="buttons two-col">
     <!-- Party / setup (left column group) -->
-    <button data-action="add-online-assigned" class="btn" title="Add all PCs with online players who have assigned characters">
-      <i class="fas fa-signal"></i> Add Online Assigned PCs
+    <button data-action="add-selected-party" class="btn" title="Add currently selected tokens to party list">
+      <i class="fas fa-user-check"></i> Add Selected to Party
     </button>
 
     <!-- Enemies (right column group) -->
@@ -94,7 +94,7 @@
 
           {{/each}}
         {{else}}
-          <div class="empty">No party members yet — use "Add Online Assigned PCs" or "Add All Assigned PCs" buttons above, or "Add Friendly Tokens (Scene)" to include NPCs.</div>
+          <div class="empty">No party members yet — use "Add Selected to Party" or "Add All Assigned PCs" buttons above, or "Add Friendly Tokens" to include NPCs.</div>
         {{/if}}
       </div>
     </div>

@@ -1,6 +1,17 @@
 import { D35EAdapter } from "../d35e-adapter";
 import { groupToEL, combineELs } from "../calc/el";
 import { split30, getPot30, getAdjustedMonsterXP } from "../calc/xp";
+import {
+  createChatMessage,
+  getActorImage,
+  getApplicationElement,
+  getControlledTokens,
+  getFoundryProperty,
+  getTokenActor,
+  getTokenDisposition,
+  getTokenId,
+  getUserTargets
+} from "../foundry-compat";
 
 type ManualAward = {
   amount: number;                    // user-entered value
@@ -72,8 +83,9 @@ export class XpCalculatorApp extends Application {
   } | null = null;
 
   static get defaultOptions() {
-    return mergeObject(super.defaultOptions, {
+    return foundry.utils.mergeObject(super.defaultOptions, {
       id: "motwmxp-calc",
+      classes: ["D35E", "themed", "motwmxp-calc-app"],
       title: "MOTWM XP Calculator",
       width: 960,
       height: 660,
@@ -295,24 +307,92 @@ getData(): any {
   };
 }
 
+/* ---------- THEME ---------- */
+private _getThemeFromUiConfig(uiConfig: any): "dark" | "light" | undefined {
+  const scheme = uiConfig?.colorScheme?.applications;
+  return scheme === "dark" || scheme === "light" ? scheme : undefined;
+}
+
+private _getEffectiveTheme(): "dark" | "light" {
+  try {
+    const uiConfig: any = (game as any).settings?.get?.("core", "uiConfig");
+    const scheme = this._getThemeFromUiConfig(uiConfig);
+    if (scheme) return scheme;
+  } catch { /* v11: setting doesn't exist */ }
+  if (document.body.classList.contains("theme-dark")) return "dark";
+  if (document.body.classList.contains("theme-light")) return "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+private _applyThemeClass(theme?: "dark" | "light"): void {
+  const el = this.element?.[0] as HTMLElement | undefined;
+  if (!el) return;
+  const effectiveTheme = theme ?? this._getEffectiveTheme();
+  el.classList.remove("theme-dark", "theme-light");
+  el.classList.add(`theme-${effectiveTheme}`);
+}
+
+protected async _render(force?: boolean, options?: any): Promise<void> {
+  await super._render(force, options);
+  this._applyThemeClass();
+}
+
 /* ---------- LISTENERS ---------- */
-activateListeners(html: JQuery) {
+private _getRootElement(html: any): HTMLElement | null {
+  return getApplicationElement(html);
+}
+
+private _bindEvents(html: any) {
+  const jqueryLike = html as any;
+  if (typeof jqueryLike?.on === "function") {
+    return {
+      on: (events: string, selector: string, handler: (event: any) => void) => {
+        jqueryLike.on(events, selector, handler);
+      }
+    };
+  }
+
+  const root = this._getRootElement(html);
+  return {
+    on: (events: string, selector: string, handler: (event: any) => void) => {
+      if (!root) return;
+      for (const evt of events.split(/\s+/).filter(Boolean)) {
+        const eventName = evt === "blur" ? "focusout" : evt;
+        root.addEventListener(eventName, (event: Event) => {
+          const origin = event.target as Element | null;
+          const currentTarget = origin?.closest(selector) as HTMLElement | null;
+          if (!currentTarget || !root.contains(currentTarget)) return;
+          handler({
+            originalEvent: event,
+            target: event.target,
+            currentTarget,
+            preventDefault: () => event.preventDefault(),
+            stopPropagation: () => event.stopPropagation()
+          });
+        });
+      }
+    }
+  };
+}
+
+activateListeners(html: any) {
   super.activateListeners(html);
+  const events = this._bindEvents(html);
 
   // --- Row actions ---
-  html.on("click", "[data-action='remove-party']", ev => {
+  events.on("click", "[data-action='remove-party']", ev => {
     const id = (ev.currentTarget as HTMLElement).dataset.id!;
     this.party.delete(id);
     this.render();
   });
 
-  html.on("click", "[data-action='remove-enemy']", ev => {
+  events.on("click", "[data-action='remove-enemy']", ev => {
     const id = (ev.currentTarget as HTMLElement).dataset.id!;
     this.enemies.delete(id);
     this.render();
   });
 
-  html.on("change", "input[data-action='toggle-earns']", ev => {
+  events.on("change", "input[data-action='toggle-earns']", ev => {
     const id = (ev.currentTarget as HTMLInputElement).dataset.id!;
     const p = this.party.get(id);
     if (p) {
@@ -322,84 +402,87 @@ activateListeners(html: JQuery) {
   });
 
   // --- EL modifier: allow decimals for granular control, allow negatives ---
-  html.on("change blur", "[data-action='el-delta']", ev => {
+  events.on("change blur", "[data-action='el-delta']", ev => {
     const s = (ev.currentTarget as HTMLInputElement).value.trim();
-    
+
     // Empty field = 0
     if (s === "") {
       this.elDelta = 0;
       this.render(true);
       return;
     }
-    
+
     // Ignore incomplete input during typing
     if (s === "-" || s === ".") {
       return;
     }
-    
+
     const n = parseFloat(s);
-    this.elDelta = Number.isFinite(n) ? n : 0;         // commit decimal value
-    this.render(true);                                  // refresh preview
+    this.elDelta = Number.isFinite(n) ? n : 0;
+    this.render(true);
   });
 
   // --- Manual Award inputs (per-party row) ---
-  html.on("change blur", "[data-action='award-amount']", ev => {
+  events.on("change blur", "[data-action='award-amount']", ev => {
     const row = (ev.currentTarget as HTMLElement).closest("[data-id]") as HTMLElement;
     const id = row?.dataset.id!;
     const prev = this.manualAwards.get(id) ?? { amount: 0, unit: "points", reason: "" };
     this.manualAwards.set(id, { ...prev, amount: Number((ev.currentTarget as HTMLInputElement).value) || 0 });
-    this.render(false); // Update preview
+    this.render(false);
   });
 
-  html.on("change", "[data-action='award-unit']", ev => {
+  events.on("change", "[data-action='award-unit']", ev => {
     const row = (ev.currentTarget as HTMLElement).closest("[data-id]") as HTMLElement;
     const id = row?.dataset.id!;
     const prev = this.manualAwards.get(id) ?? { amount: 0, unit: "points", reason: "" };
     this.manualAwards.set(id, { ...prev, unit: ((ev.currentTarget as HTMLSelectElement).value as "points" | "bubbles") });
-    this.render(false); // Update preview
+    this.render(false);
   });
 
-  html.on("input", "[data-action='award-reason']", ev => {
+  events.on("input", "[data-action='award-reason']", ev => {
     const row = (ev.currentTarget as HTMLElement).closest("[data-id]") as HTMLElement;
     const id = row?.dataset.id!;
     const prev = this.manualAwards.get(id) ?? { amount: 0, unit: "points", reason: "" };
     this.manualAwards.set(id, { ...prev, reason: (ev.currentTarget as HTMLInputElement).value ?? "" });
-    // No render needed for reason - it's just for chat message
   });
 
   // --- Party / setup sources (NEW canonical set) ---
-  html.on("click", "[data-action='add-online-assigned']", () => this.addAssignedPlayersToPartyOnlineOnly());
-  html.on("click", "[data-action='add-all-assigned']",   () => this.addAssignedPlayersToPartyAll());
-  html.on("click", "[data-action='add-friendly-scene']", () => this.addFriendlySceneTokensToParty());
-  html.on("click", "[data-action='add-selected-party']", () => this.addSelectedToParty());
+  events.on("click", "[data-action='add-all-assigned']", () => this.addAssignedPlayersToPartyAll());
+  events.on("click", "[data-action='add-friendly-scene']", () => this.addFriendlySceneTokensToParty());
+  events.on("click", "[data-action='add-selected-party']", () => this.addSelectedToParty());
 
   // --- Enemies sources ---
-  html.on("click", "[data-action='add-selected-enemies']", () => this.addSelectedToEnemies());
-  html.on("click", "[data-action='add-hostile-scene']",    () => this.addHostileSceneTokensToEnemies());
-  html.on("click", "[data-action='add-neutral-scene']",    () => this.addNeutralSceneTokensToEnemies());
+  events.on("click", "[data-action='add-selected-enemies']", () => this.addSelectedToEnemies());
+  events.on("click", "[data-action='add-hostile-scene']", () => this.addHostileSceneTokensToEnemies());
+  events.on("click", "[data-action='add-neutral-scene']", () => this.addNeutralSceneTokensToEnemies());
 
   // --- Clearers ---
-  html.on("click", "[data-action='clear-party']",   () => { this.party.clear();   this.render(true); });
-  html.on("click", "[data-action='clear-enemies']", () => { this.enemies.clear(); this.render(true); });
+  events.on("click", "[data-action='clear-party']", () => {
+    this.party.clear();
+    this.render(true);
+  });
+  events.on("click", "[data-action='clear-enemies']", () => {
+    this.enemies.clear();
+    this.render(true);
+  });
 
   // --- Apply & Rollback ---
-  html.on("click", "[data-action='apply-xp']", () => this.applyXP());
-  html.on("click", "[data-action='rollback-xp']", () => this.rollbackXP());
+  events.on("click", "[data-action='apply-xp']", () => this.applyXP());
+  events.on("click", "[data-action='rollback-xp']", () => this.rollbackXP());
 
   // --- EL Details Toggle ---
-  html.on("click", "[data-action='toggle-el-details']", () => {
+  events.on("click", "[data-action='toggle-el-details']", () => {
     this.showElDetails = !this.showElDetails;
     (this as any).render(false);
   });
 
   // --- Double-click to open character sheets ---
-  html.on("dblclick", ".party .row", ev => {
-    // Don't open sheet if user double-clicked on interactive elements
+  events.on("dblclick", ".party .row", ev => {
     const target = ev.target as HTMLElement;
-    if (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'BUTTON' || target.closest('button')) {
+    if (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "BUTTON" || target.closest("button")) {
       return;
     }
-    
+
     const id = (ev.currentTarget as HTMLElement).dataset.id;
     if (id) {
       const actor = (game as any).actors?.get(id);
@@ -409,14 +492,12 @@ activateListeners(html: JQuery) {
     }
   });
 
-  html.on("dblclick", ".enemies .row", ev => {
-    // Don't open sheet if user double-clicked on interactive elements
+  events.on("dblclick", ".enemies .row", ev => {
     const target = ev.target as HTMLElement;
-    if (target.tagName === 'BUTTON' || target.closest('button')) {
+    if (target.tagName === "BUTTON" || target.closest("button")) {
       return;
     }
-    
-    // Use data-actor-id to get the actor (not the token ID from data-id)
+
     const actorId = (ev.currentTarget as HTMLElement).dataset.actorId;
     if (actorId) {
       const actor = (game as any).actors?.get(actorId);
@@ -425,7 +506,7 @@ activateListeners(html: JQuery) {
       }
     }
   });
-  }
+}
   
 /** --- CR extraction used for enemies (unified across all adders) --- */
 private getActorCR(a: Actor): number {
@@ -448,7 +529,7 @@ private getActorCR(a: Actor): number {
 
   for (const p of crPaths) {
     // @ts-ignore
-    const v = Number(getProperty(a, p));
+    const v = Number(getFoundryProperty(a, p));
     // Preserve fractional CRs (0.125, 0.25, 0.33, 0.5, etc.) - don't round them to 0!
     if (Number.isFinite(v) && v > 0) return v;
   }
@@ -457,7 +538,7 @@ private getActorCR(a: Actor): number {
   // @ts-ignore
   const type  = (a as any).type;
   // @ts-ignore
-  const level = Number(getProperty(a, "system.details.level.value")) || 0;
+  const level = Number(getFoundryProperty(a, "system.details.level.value")) || 0;
 
   if (type === "character") {
     // RAW quick heuristic: PC CR ≈ Character Level
@@ -471,19 +552,18 @@ private getActorCR(a: Actor): number {
 
 /** Add all hostile tokens on the current scene to the enemies list (with proper CR). */
 private addHostileSceneTokensToEnemies(): void {
-  const HOSTILE = (CONST as any)?.TOKEN_DISPOSITIONS?.HOSTILE ?? -1;
+  const HOSTILE = (CONST as any)?.TOKEN_DISPOSITION?.HOSTILE ?? (CONST as any)?.TOKEN_DISPOSITIONS?.HOSTILE ?? -1;
   const tokens = canvas.tokens?.placeables ?? [];
-  const hostileTokens = tokens.filter(t => (t as any).document?.disposition === HOSTILE);
+  const hostileTokens = tokens.filter(t => getTokenDisposition(t) === HOSTILE);
 
   let added = 0;
   for (const t of hostileTokens) {
-    const a = t.actor;
-    const tokenId = (t as any).id;
+    const a = getTokenActor(t);
+    const tokenId = getTokenId(t);
     if (!a?.id || !tokenId || this.enemies.has(tokenId)) continue;
 
     const name = a.name ?? "Unknown";
-    // @ts-ignore
-    const img  = a.img ?? a.prototypeToken?.texture?.src ?? "icons/svg/skull.svg";
+    const img  = getActorImage(a, "icons/svg/skull.svg");
     const cr   = this.getActorCR(a); // <-- unified CR conversion
 
     this.enemies.set(tokenId, { id: a.id, tokenId, name, img, cr });
@@ -495,19 +575,18 @@ private addHostileSceneTokensToEnemies(): void {
 
 /** Add all neutral tokens on the current scene to the enemies list (with proper CR). */
 private addNeutralSceneTokensToEnemies(): void {
-  const NEUTRAL = (CONST as any)?.TOKEN_DISPOSITIONS?.NEUTRAL ?? 0;
+  const NEUTRAL = (CONST as any)?.TOKEN_DISPOSITION?.NEUTRAL ?? (CONST as any)?.TOKEN_DISPOSITIONS?.NEUTRAL ?? 0;
   const tokens = canvas.tokens?.placeables ?? [];
-  const neutralTokens = tokens.filter(t => (t as any).document?.disposition === NEUTRAL);
+  const neutralTokens = tokens.filter(t => getTokenDisposition(t) === NEUTRAL);
 
   let added = 0;
   for (const t of neutralTokens) {
-    const a = t.actor;
-    const tokenId = (t as any).id;
+    const a = getTokenActor(t);
+    const tokenId = getTokenId(t);
     if (!a?.id || !tokenId || this.enemies.has(tokenId)) continue;
 
     const name = a.name ?? "Unknown";
-    // @ts-ignore
-    const img  = a.img ?? a.prototypeToken?.texture?.src ?? "icons/svg/eye.svg";
+    const img  = getActorImage(a, "icons/svg/eye.svg");
     const cr   = this.getActorCR(a); // <-- unified CR conversion
 
     this.enemies.set(tokenId, { id: a.id, tokenId, name, img, cr });
@@ -524,10 +603,8 @@ private addActorsToParty(actors: Actor[]): number {
     if (!a?.id || this.party.has(a.id)) continue;
 
     const name  = a.name ?? "Unknown";
-    // @ts-ignore
-    const img   = a.img ?? a.prototypeToken?.texture?.src ?? "icons/svg/mystery-man.svg";
-    // @ts-ignore
-    const level = Number(getProperty(a, "system.details.level.value")) || 1;
+    const img   = getActorImage(a);
+    const level = D35EAdapter.getLevel(a) || 1;
 
     this.party.set(a.id, { id: a.id, name, img, level, earns: true, friend: false });
     added++;
@@ -557,11 +634,11 @@ private addAssignedPlayersToPartyAll(): void {
 
 /** (3) All tokens marked Friendly on current scene (any actor behind them). */
 private addFriendlySceneTokensToParty(): void {
-  const FRIENDLY = (CONST as any)?.TOKEN_DISPOSITIONS?.FRIENDLY ?? 1;
+  const FRIENDLY = (CONST as any)?.TOKEN_DISPOSITION?.FRIENDLY ?? (CONST as any)?.TOKEN_DISPOSITIONS?.FRIENDLY ?? 1;
   const tokens = canvas.tokens?.placeables ?? [];
   const actors = tokens
-    .filter(t => (t as any).document?.disposition === FRIENDLY)
-    .map(t => t.actor)
+    .filter(t => getTokenDisposition(t) === FRIENDLY)
+    .map(t => getTokenActor(t))
     .filter((a): a is Actor => !!a);
 
   const added = this.addActorsToParty(actors);
@@ -571,14 +648,14 @@ private addFriendlySceneTokensToParty(): void {
 
 /** Populate from the CURRENT SCENE: only Friendly PC tokens (actor.type === "character"). */
 private populateScenePlayers(): void {
-  const FRIENDLY = (CONST as any)?.TOKEN_DISPOSITIONS?.FRIENDLY ?? 1;
+  const FRIENDLY = (CONST as any)?.TOKEN_DISPOSITION?.FRIENDLY ?? (CONST as any)?.TOKEN_DISPOSITIONS?.FRIENDLY ?? 1;
 
   const tokens = canvas.tokens?.placeables ?? [];
   const actors: Actor[] = [];
 
   for (const t of tokens) {
-    const doc = (t as any).document;           // TokenDocument
-    const a: Actor | undefined = t.actor ?? undefined;
+    const doc = (t as any).document;
+    const a = getTokenActor(t) ?? undefined;
     if (!doc || !a) continue;
 
     const isFriendly = doc.disposition === FRIENDLY;
@@ -635,7 +712,7 @@ private addFoundryParty(): void {
     if (!actor) continue;
     const name = actor.name ?? id;
     // @ts-ignore
-    const lvl = Number(getProperty(actor, "system.details.level.value") ?? 1);
+    const lvl = Number(getFoundryProperty(actor, "system.details.level.value") ?? 1);
     const perBubble = bubbleSizeForLevel(lvl);
     const xp = Math.round(award.unit === "bubbles" ? award.amount * perBubble : award.amount);
     if (xp !== 0) out.push({ id, name, xp, reason: award.reason?.trim() || "Manual award" });
@@ -662,16 +739,16 @@ private addFoundryParty(): void {
   }
 
   private addSelectedToParty() {
-    const selected = canvas?.tokens?.controlled ?? [];
+    const selected = getControlledTokens();
     if (!selected.length) return ui.notifications?.warn("Select one or more tokens first.");
     let added = 0, skipped = 0;
     for (const t of selected) {
-      const a = (t as any).actor as Actor | null;
+      const a = getTokenActor(t);
       if (!a) { skipped++; continue; }
       if (this.enemies.has(a.id)) { skipped++; continue; }
       const level = D35EAdapter.getLevel(a) || 1;
       const entry: PartyEntry = {
-        id: a.id, name: a.name ?? "Actor", img: a.img ?? "",
+        id: a.id, name: a.name ?? "Actor", img: getActorImage(a, ""),
         level, earns: true, friend: !a.hasPlayerOwner
       };
       if (!this.party.has(a.id)) { this.party.set(a.id, entry); added++; } else skipped++;
@@ -682,7 +759,7 @@ private addFoundryParty(): void {
 
 /** Add currently selected canvas tokens as enemies (uses unified CR logic). */
 private addSelectedToEnemies(): void {
-  const selected = canvas?.tokens?.controlled ?? [];
+  const selected = getControlledTokens();
   if (!selected.length) {
     ui.notifications?.warn("Select one or more tokens first.");
     return;
@@ -691,8 +768,8 @@ private addSelectedToEnemies(): void {
   let added = 0, skipped = 0;
 
   for (const t of selected) {
-    const a: Actor | undefined = (t as any).actor;
-    const tokenId = (t as any).id;
+    const a = getTokenActor(t) ?? undefined;
+    const tokenId = getTokenId(t);
     if (!a || !tokenId) { skipped++; continue; }
 
     // Don't duplicate party members or existing enemies (use token ID for enemies now)
@@ -703,8 +780,7 @@ private addSelectedToEnemies(): void {
     if (!Number.isFinite(cr) || cr <= 0) { skipped++; continue; }
 
     // Safe image fallbacks
-    // @ts-ignore
-    const img = a.img ?? a.prototypeToken?.texture?.src ?? "icons/svg/skull.svg";
+    const img = getActorImage(a, "icons/svg/skull.svg");
     const name = a.name ?? "Enemy";
 
     const entry: EnemyEntry = { id: a.id, tokenId, name, img, cr: Number(cr) };
@@ -718,16 +794,16 @@ private addSelectedToEnemies(): void {
 
 
   private addTargetedToEnemies() {
-    const targets = game.user?.targets ?? new Set();
-    if (!targets.size) return ui.notifications?.warn("Target one or more creatures first.");
+    const targets = getUserTargets();
+    if (!targets.length) return ui.notifications?.warn("Target one or more creatures first.");
     let added = 0, skipped = 0;
-    for (const t of targets as any) {
-      const a = (t as any).actor as Actor | null;
-      const tokenId = (t as any).id;
+    for (const t of targets) {
+      const a = getTokenActor(t);
+      const tokenId = getTokenId(t);
       if (!a || !tokenId) { skipped++; continue; }
       if (this.party.has(a.id)) { skipped++; continue; }
       const crRaw = D35EAdapter.getCR(a); if (!crRaw) { skipped++; continue; }
-      const entry: EnemyEntry = { id: a.id, tokenId, name: a.name ?? "Enemy", img: a.img ?? "", cr: Number(crRaw) };
+      const entry: EnemyEntry = { id: a.id, tokenId, name: a.name ?? "Enemy", img: getActorImage(a, ""), cr: Number(crRaw) };
       if (!this.enemies.has(tokenId)) { this.enemies.set(tokenId, entry); added++; } else skipped++;
     }
     ui.notifications?.info(`Enemies +${added}${skipped ? `, skipped ${skipped}` : ""}`);
@@ -807,9 +883,8 @@ private addSelectedToEnemies(): void {
     for (const g of grants) {
       const actor = game.actors?.get(g.id);
       if (!actor) continue;
-      // @ts-ignore
-      const curr = Number(getProperty(actor, "system.details.xp.value") ?? 0);
-      await actor.update({ "system.details.xp.value": curr + g.xp });
+      const curr = D35EAdapter.getXP(actor);
+      await D35EAdapter.setXP(actor, curr + g.xp);
     }
   };
 
@@ -841,15 +916,15 @@ private addSelectedToEnemies(): void {
 
     if (encounterGrants.length) {
       const html = `<div><h3>Encounter XP Awards</h3>${makeList(encounterGrants)}</div>`;
-      const msg = await ChatMessage.create({ content: html });
-      if (msg?.id) chatMessageIds.push(msg.id);
+      const messageId = await createChatMessage(html);
+      if (messageId) chatMessageIds.push(messageId);
     }
     if (manualGrants.length) {
       // attach reasons where available
       const withReasons = manualGrants.map(g => ({ ...g, reason: (stateSnapshot.manualAwards.get(g.id)?.reason) || "Manual award" }));
       const html = `<div><h3>Manual XP Awards</h3>${makeList(withReasons)}</div>`;
-      const msg = await ChatMessage.create({ content: html });
-      if (msg?.id) chatMessageIds.push(msg.id);
+      const messageId = await createChatMessage(html);
+      if (messageId) chatMessageIds.push(messageId);
     }
   }
 
@@ -907,9 +982,8 @@ private addSelectedToEnemies(): void {
       for (const g of grants) {
         const actor = game.actors?.get(g.id);
         if (!actor) continue;
-        // @ts-ignore
-        const curr = Number(getProperty(actor, "system.details.xp.value") ?? 0);
-        await actor.update({ "system.details.xp.value": curr - g.xp });
+        const curr = D35EAdapter.getXP(actor);
+        await D35EAdapter.setXP(actor, curr - g.xp);
       }
     };
 

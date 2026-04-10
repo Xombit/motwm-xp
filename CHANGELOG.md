@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.3 - Foundry v14 Compatibility and D35E Theme Integration
+
+### Fixed
+- **Foundry v14 support**: Added support for ApplicationV2
+- **Online/Assigned party button**: Replaced the broken "Add Online Assigned" party import button with a "Add Selected Tokens" button that works correctly regardless of player assignment state
+
+### Improved
+- **D35E Theme Integration**: Calculator window now inherits the active D35E system theme, as well as observing light/dark mode.
+
 ## 1.0.2 - UX Improvements and Polish
 
 ### Fixed

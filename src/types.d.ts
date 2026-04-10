@@ -8,14 +8,16 @@ declare global {
   const canvas: any;
   const ui: any;
   const Hooks: any;
-  const mergeObject: any;
+  const foundry: any;
   
   class Application {
     constructor(options?: any);
     static get defaultOptions(): any;
     getData(): any;
-    activateListeners(html: JQuery): void;
+    activateListeners(html: any): void;
+    element: any;
     render(force?: boolean): any;
+    close(options?: any): any;
   }
   
   class Actor {
