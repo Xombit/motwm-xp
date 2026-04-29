@@ -85,7 +85,7 @@ export function getActorImage(actor: any, fallback = "icons/svg/mystery-man.svg"
   return actor?.img ?? actor?.prototypeToken?.texture?.src ?? fallback;
 }
 
-export async function createChatMessage(content: string): Promise<string | null> {
-  const message = await (ChatMessage as any)?.create?.({ content });
+export async function createChatMessage(content: string, rollMode = "publicroll"): Promise<string | null> {
+  const message = await (ChatMessage as any)?.create?.({ content, rollMode });
   return message?.id ?? null;
 }
