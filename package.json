@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite build --watch",
     "build": "vite build --emptyOutDir",
-    "pack": "py scripts/pack.py",
+    "pack": "powershell -ExecutionPolicy Bypass -File scripts/pack.ps1",
+    "pack:legacy": "py scripts/pack.py",
+    "pack:release": "powershell -ExecutionPolicy Bypass -File scripts/build-release.ps1",
     "pack-win": "powershell -ExecutionPolicy Bypass -File scripts/pack.ps1",
     "deploy": "powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1",
     "deploy-win": "powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1"

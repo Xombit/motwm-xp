@@ -1,0 +1,82 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to package, for example v1.0.4
+        required: true
+      upload_to_release:
+        description: Upload built assets to an existing GitHub Release for the provided tag
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+      SHOULD_UPLOAD_TO_RELEASE: ${{ github.event_name == 'release' || inputs.upload_to_release }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build release assets
+        shell: pwsh
+        run: |
+          ./scripts/build-release.ps1 -Tag "${env:RELEASE_TAG}" -Repository "${{ github.repository }}" -OutputZipPath "${PWD}/module.zip"
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets-${{ env.RELEASE_TAG }}
+          path: |
+            dist-release/module.json
+            module.zip
+          if-no-files-found: error
+
+      - name: Upload release assets
+        if: env.SHOULD_UPLOAD_TO_RELEASE == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          gh release upload "${env:RELEASE_TAG}" dist-release/module.json module.zip --clobber
+
+      - name: Publish workflow summary
+        shell: pwsh
+        run: |
+          $manifest = Get-Content "./dist-release/module.json" -Raw | ConvertFrom-Json
+          $paths = Get-ChildItem "./dist-release" -Recurse | ForEach-Object { $_.FullName.Replace((Resolve-Path .).Path + [System.IO.Path]::DirectorySeparatorChar, "") }
+          @(
+            "## Release Assets"
+            ""
+            "- Tag: ${env:RELEASE_TAG}"
+            "- Version: $($manifest.version)"
+            "- Manifest: $($manifest.manifest)"
+            "- Download: $($manifest.download)"
+            "- Uploaded to release: ${env:SHOULD_UPLOAD_TO_RELEASE}"
+            ""
+            "### Packaged Paths"
+          ) + $paths | Set-Content $env:GITHUB_STEP_SUMMARY
