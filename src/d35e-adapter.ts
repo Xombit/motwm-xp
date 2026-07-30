@@ -10,21 +10,24 @@ export class D35EAdapter {
     return actor.update({ "system.details.xp.value": Number(value) });
   }
   static getLevel(actor: Actor): number {
-    // Prefer summed classes for characters
+    // default level calculation (NPCs/monsters often have this)
+    // @ts-ignore
+    const defaultLevel = Number(getFoundryProperty(actor, "system.details.level.value") ?? 0);
+    if (defaultLevel > 0) return defaultLevel;
+    // if it's not present, summed classes for characters
     // @ts-ignore
     const classes = getFoundryProperty(actor, "system.classes");
     if (classes && typeof classes === "object") {
       let total = 0;
       for (const cls of Object.values(classes) as any[]) {
+        const bab = String(getFoundryProperty(cls, "bab") ?? "");
+        if(bab === "") continue; // skip non-class entries
         const lv = Number(getFoundryProperty(cls, "level") ?? 0);
         total += lv;
       }
       if (total > 0) return total;
     }
-    // Fallback (NPCs/monsters often have this)
-    // @ts-ignore
-    const fallback = getFoundryProperty(actor, "system.details.level.value");
-    return Number(fallback ?? 0);
+    return 0;
   }
   static getCR(actor: Actor): number | null {
     // D35E system stores CR in different ways:
