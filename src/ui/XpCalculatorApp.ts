@@ -246,8 +246,9 @@ getData(): any {
         let totalXP = 0;
         for (const e of this.enemies.values()) {
           const baseCR = Number(e.cr) || 1;
-          totalXP += getAdjustedMonsterXP(p.level, baseCR, crAdjustment, partySize);
+          totalXP += getAdjustedMonsterXP(p.level, baseCR, crAdjustment);
         }
+        totalXP = Math.round(totalXP / partySize);
         encounterXpMap.set(p.id, totalXP);
       });
     } else if (awardMode === "split30" && elInt > 0) {
@@ -856,8 +857,9 @@ private addSelectedToEnemies(): void {
         let totalXP = 0;
         for (const e of stateSnapshot.enemies.values()) {
           const baseCR = Number(e.cr) || 1;
-          totalXP += getAdjustedMonsterXP(p.level, baseCR, crAdjustment, partySize);
+          totalXP += getAdjustedMonsterXP(p.level, baseCR, crAdjustment);
         }
+        totalXP = Math.round(totalXP / partySize);
         encounterGrants.push({ id: p.id, name: p.name, xp: totalXP });
       }
     } else if (awardMode === "split30" && el > 0) {
