@@ -75,7 +75,7 @@ function getBaseXPForSingleMonster(pcLevel: number, monsterCR: number): number {
   
   // For CRs above the table, use DMG rule: double XP for every +2 CR
   // Find the highest CR in this level's row
-  const maxCRInRow = Math.max(...Object.keys(row).map(k => parseInt(k)).filter(k => row[k] > 0));
+  const maxCRInRow = Math.max(...Object.keys(row).map(k => Number.parseInt(k)).filter(k => row[k] > 0));
   if (monsterCR > maxCRInRow) {
     // Calculate how many doubling steps above the max CR
     const stepsAbove = Math.floor((monsterCR - maxCRInRow) / 2);
@@ -104,13 +104,13 @@ export function getAdjustedMonsterXP(pcLevel: number, baseCR: number, crAdjustme
     if (adjustedCR < 1) {
         // Fractional CRs scale proportionally from the CR 1 value
         const cr1XP = getBaseXPForSingleMonster(pcLevel, 1);
-        return Math.round((cr1XP * adjustedCR) / partySize);
+        return (cr1XP * adjustedCR);
     }
 
     // If the adjustment is a whole number (or very close), just use direct lookup
     const nearest = Math.round(adjustedCR);
     if (Math.abs(adjustedCR - nearest) < 0.001) {
-        return Math.round(getBaseXPForSingleMonster(pcLevel, nearest) / partySize);
+        return getBaseXPForSingleMonster(pcLevel, nearest);
     }
 
   // For fractional CRs, interpolate between floor and ceiling
@@ -121,9 +121,7 @@ export function getAdjustedMonsterXP(pcLevel: number, baseCR: number, crAdjustme
   const ceilXP = getBaseXPForSingleMonster(pcLevel, ceilCR);
 
     // Linear interpolation
-    const interpolatedXP = floorXP + (ceilXP - floorXP) * (adjustedCR - floorCR);
-
-    return Math.round(interpolatedXP / partySize);
+    return floorXP + (ceilXP - floorXP) * (adjustedCR - floorCR);
 }
 
 /** 
