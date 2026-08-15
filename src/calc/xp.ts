@@ -64,7 +64,7 @@ function getBaseXPForSingleMonster(pcLevel: number, monsterCR: number): number {
   };
 
   const level = Math.max(1, Math.min(40, Math.floor(pcLevel)));
-  const cr = Math.max(0.125, monsterCR);
+  const cr = Math.max(0.1, monsterCR);
   
   // Handle fractional CRs (below CR 1)
   if (cr < 1) {
@@ -111,7 +111,7 @@ export function getAdjustedMonsterXP(pcLevel: number, baseCR: number, crAdjustme
   if (partySize <= 0) return 0;
   
   // Apply the adjustment
-  const adjustedCR = Math.max(0.125, baseCR + crAdjustment);
+  const adjustedCR = Math.max(0.1, baseCR + crAdjustment);
   
   // If the adjustment is a whole number (or very close), just use direct lookup
   const fractionalPart = adjustedCR - Math.floor(adjustedCR);
