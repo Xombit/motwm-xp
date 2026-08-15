@@ -23,6 +23,7 @@ type ManualAward = {
 function formatCR(cr: number): string {
   // Common D&D fractional CRs with Unicode fractions
   const fractions: Record<number, string> = {
+    0.1: "⅒",
     0.125: "⅛",
     0.25: "¼",
     0.33: "⅓",
@@ -99,8 +100,8 @@ getData(): any {
   // Build EL from enemies (group by CR)
   const crMap = new Map<number, number>();
   for (const e of this.enemies.values()) {
-    // Preserve fractional CRs (0.125, 0.25, 0.33, 0.5, etc.)
-    const cr = Math.max(0.125, Number(e.cr) || 1);
+    // Preserve fractional CRs (0.1, 0.25, 0.33, 0.5, etc.)
+    const cr = Math.max(0.1, Number(e.cr) || 1);
     crMap.set(cr, (crMap.get(cr) ?? 0) + 1);
   }
   const groupELs: number[] = [];
@@ -246,8 +247,9 @@ getData(): any {
         let totalXP = 0;
         for (const e of this.enemies.values()) {
           const baseCR = Number(e.cr) || 1;
-          totalXP += getAdjustedMonsterXP(p.level, baseCR, crAdjustment, partySize);
+          totalXP += getAdjustedMonsterXP(p.level, baseCR, crAdjustment);
         }
+        totalXP = Math.round(totalXP / partySize);
         encounterXpMap.set(p.id, totalXP);
       });
     } else if (awardMode === "split30" && elInt > 0) {
@@ -530,7 +532,7 @@ private getActorCR(a: Actor): number {
   for (const p of crPaths) {
     // @ts-ignore
     const v = Number(getFoundryProperty(a, p));
-    // Preserve fractional CRs (0.125, 0.25, 0.33, 0.5, etc.) - don't round them to 0!
+    // Preserve fractional CRs (0.1, 0.25, 0.33, 0.5, etc.) - don't round them to 0!
     if (Number.isFinite(v) && v > 0) return v;
   }
 
@@ -835,8 +837,8 @@ private addSelectedToEnemies(): void {
     // Recompute encounter preview (mirror your getData preview branch)
     const crMap = new Map<number, number>();
     for (const e of stateSnapshot.enemies.values()) {
-      // Preserve fractional CRs (0.125, 0.25, 0.33, 0.5, etc.)
-      const cr = Math.max(0.125, Number(e.cr) || 1);
+      // Preserve fractional CRs (0.1, 0.25, 0.33, 0.5, etc.)
+      const cr = Math.max(0.1, Number(e.cr) || 1);
       crMap.set(cr, (crMap.get(cr) ?? 0) + 1);
     }
     const groupELs: number[] = [];
@@ -856,8 +858,9 @@ private addSelectedToEnemies(): void {
         let totalXP = 0;
         for (const e of stateSnapshot.enemies.values()) {
           const baseCR = Number(e.cr) || 1;
-          totalXP += getAdjustedMonsterXP(p.level, baseCR, crAdjustment, partySize);
+          totalXP += getAdjustedMonsterXP(p.level, baseCR, crAdjustment);
         }
+        totalXP = Math.round(totalXP / partySize);
         encounterGrants.push({ id: p.id, name: p.name, xp: totalXP });
       }
     } else if (awardMode === "split30" && el > 0) {
