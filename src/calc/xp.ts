@@ -98,14 +98,14 @@ function getBaseXPForSingleMonster(pcLevel: number, monsterCR: number): number {
  */
 export function getAdjustedMonsterXP(pcLevel: number, baseCR: number, crAdjustment: number): number {
   // Apply the adjustment
-  const adjustedCR = Math.max(0.125, baseCR + crAdjustment);
+    const adjustedCR = Math.max(0.1, baseCR + crAdjustment);
 
-  // Handle fractional CRs (below CR 1)
-  if (adjustedCR < 1) {
-    // Fractional CRs scale proportionally from the CR 1 value
-    const cr1XP = getBaseXPForSingleMonster(pcLevel, 1);
-    return Math.round((cr1XP * adjustedCR) / partySize);
-  }
+    // Handle fractional CRs (below CR 1)
+    if (adjustedCR < 1) {
+        // Fractional CRs scale proportionally from the CR 1 value
+        const cr1XP = getBaseXPForSingleMonster(pcLevel, 1);
+        return Math.round((cr1XP * adjustedCR) / partySize);
+    }
 
     // If the adjustment is a whole number (or very close), just use direct lookup
     const nearest = Math.round(adjustedCR);
