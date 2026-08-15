@@ -104,19 +104,16 @@ function getBaseXPForSingleMonster(pcLevel: number, monsterCR: number): number {
  * @param pcLevel - PC level
  * @param baseCR - Monster's base CR
  * @param crAdjustment - CR adjustment (can be fractional, e.g., 1.5, -0.3)
- * @param partySize - Number of PCs for division
  * @returns XP award for one PC
  */
-export function getAdjustedMonsterXP(pcLevel: number, baseCR: number, crAdjustment: number, partySize: number): number {
-  if (partySize <= 0) return 0;
-  
+export function getAdjustedMonsterXP(pcLevel: number, baseCR: number, crAdjustment: number): number {
   // Apply the adjustment
   const adjustedCR = Math.max(0.125, baseCR + crAdjustment);
   
   // If the adjustment is a whole number (or very close), just use direct lookup
   const fractionalPart = adjustedCR - Math.floor(adjustedCR);
   if (fractionalPart < 0.001) {
-    return Math.round(getBaseXPForSingleMonster(pcLevel, adjustedCR) / partySize);
+    return getBaseXPForSingleMonster(pcLevel, adjustedCR);
   }
   
   // For fractional CRs, interpolate between floor and ceiling
@@ -127,9 +124,7 @@ export function getAdjustedMonsterXP(pcLevel: number, baseCR: number, crAdjustme
   const ceilXP = getBaseXPForSingleMonster(pcLevel, ceilCR);
   
   // Linear interpolation
-  const interpolatedXP = floorXP + (ceilXP - floorXP) * fractionalPart;
-  
-  return Math.round(interpolatedXP / partySize);
+  return floorXP + (ceilXP - floorXP) * fractionalPart;
 }
 
 /** 
