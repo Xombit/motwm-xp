@@ -64,31 +64,21 @@ function getBaseXPForSingleMonster(pcLevel: number, monsterCR: number): number {
   };
 
   const level = Math.max(1, Math.min(40, Math.floor(pcLevel)));
-  const cr = Math.max(0.125, monsterCR);
-  
-  // Handle fractional CRs (below CR 1)
-  if (cr < 1) {
-    // Fractional CRs scale proportionally from the CR 1 value
-    const cr1XP = TABLE_2_6[level]?.[1] ?? 0;
-    return Math.round(cr1XP * cr);
-  }
-  
-  const crInt = Math.floor(cr);
   const row = TABLE_2_6[level];
   
   if (!row) return 0;
   
   // Direct table lookup
-  if (row[crInt] !== undefined) {
-    return row[crInt];
+  if (row[monsterCR] !== undefined) {
+    return row[monsterCR];
   }
   
   // For CRs above the table, use DMG rule: double XP for every +2 CR
   // Find the highest CR in this level's row
   const maxCRInRow = Math.max(...Object.keys(row).map(k => parseInt(k)).filter(k => row[k] > 0));
-  if (crInt > maxCRInRow) {
+  if (monsterCR > maxCRInRow) {
     // Calculate how many doubling steps above the max CR
-    const stepsAbove = Math.floor((crInt - maxCRInRow) / 2);
+    const stepsAbove = Math.floor((monsterCR - maxCRInRow) / 2);
     const baseXP = row[maxCRInRow] ?? 0;
     return Math.round(baseXP * Math.pow(2, stepsAbove));
   }
@@ -112,13 +102,20 @@ export function getAdjustedMonsterXP(pcLevel: number, baseCR: number, crAdjustme
   
   // Apply the adjustment
   const adjustedCR = Math.max(0.125, baseCR + crAdjustment);
-  
-  // If the adjustment is a whole number (or very close), just use direct lookup
-  const fractionalPart = adjustedCR - Math.floor(adjustedCR);
-  if (fractionalPart < 0.001) {
-    return Math.round(getBaseXPForSingleMonster(pcLevel, adjustedCR) / partySize);
+
+  // Handle fractional CRs (below CR 1)
+  if (adjustedCR < 1) {
+    // Fractional CRs scale proportionally from the CR 1 value
+    const cr1XP = getBaseXPForSingleMonster(pcLevel, 1);
+    return Math.round((cr1XP * adjustedCR) / partySize);
   }
-  
+
+  // If the adjustment is a whole number (or very close), just use direct lookup
+  const nearest = Math.round(adjustedCR);
+  if (Math.abs(adjustedCR - nearest) < 0.001) {
+    return Math.round(getBaseXPForSingleMonster(pcLevel, nearest) / partySize);
+  }
+
   // For fractional CRs, interpolate between floor and ceiling
   const floorCR = Math.floor(adjustedCR);
   const ceilCR = Math.ceil(adjustedCR);
@@ -127,7 +124,7 @@ export function getAdjustedMonsterXP(pcLevel: number, baseCR: number, crAdjustme
   const ceilXP = getBaseXPForSingleMonster(pcLevel, ceilCR);
   
   // Linear interpolation
-  const interpolatedXP = floorXP + (ceilXP - floorXP) * fractionalPart;
+  const interpolatedXP = floorXP + (ceilXP - floorXP) * (adjustedCR - floorCR);
   
   return Math.round(interpolatedXP / partySize);
 }
